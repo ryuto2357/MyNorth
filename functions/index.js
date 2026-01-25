@@ -1,32 +1,28 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
-const {setGlobalOptions} = require("firebase-functions");
+const {defineSecret} = require("firebase-functions/params");
+const {GoogleGenAI} = require("@google/genai");
 const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+exports.chatGemini = onRequest({
+  cors: true, secrets: [GEMINI_API_KEY],
+}, async (req, res) => {
+  const {history = [], message} = req.body;
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+  const ai = new GoogleGenAI({
+    apiKey: GEMINI_API_KEY.value(),
+  });
+
+  const chat = await ai.chats.create({
+    model: "gemini-3-flash-preview",
+    history: history.map((m) => ({
+      role: m.role, parts: [{text: m.text}],
+    })),
+  });
+
+  const response = await chat.sendMessage({
+    message: message,
+  });
+
+  res.status(200).send(response.text);
+});
