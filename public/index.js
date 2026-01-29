@@ -1,19 +1,19 @@
 marked.setOptions({
-  breaks: true,
-  mangle: false,
-  headerIds: false,
+    breaks: true,
+    mangle: false,
+    headerIds: false,
 });
 
 function renderMarkdown(mdText) {
-  const rawHtml = marked.parse(mdText);
-  const cleanHtml = DOMPurify.sanitize(rawHtml);
-  return cleanHtml;
+    const rawHtml = marked.parse(mdText);
+    const cleanHtml = DOMPurify.sanitize(rawHtml);
+    return cleanHtml;
 }
 
 function escapeHTML(text) {
-  const div = document.createElement("div");
-  div.innerText = text;
-  return div.innerHTML;
+    const div = document.createElement("div");
+    div.innerText = text;
+    return div.innerHTML;
 }
 
 
@@ -24,7 +24,7 @@ const chatLogs = document.getElementById("chatLogs");
 const chatHistory = [];
 
 function addUserMessage(text) {
-  chatLogs.innerHTML += `
+    chatLogs.innerHTML += `
     <div class="d-flex justify-content-end mb-2">
       <div class="bg-success text-white p-2 rounded-3" style="max-width: 70%">
         ${escapeHTML(text)}
@@ -34,9 +34,9 @@ function addUserMessage(text) {
 }
 
 function addAIMessage(text) {
-  const html = renderMarkdown(text);
+    const html = renderMarkdown(text);
 
-  chatLogs.innerHTML += `
+    chatLogs.innerHTML += `
     <div class="d-flex justify-content-start mb-2">
       <div class="bg-light border p-2 rounded-3" style="max-width: 70%">
         ${html}
@@ -45,52 +45,85 @@ function addAIMessage(text) {
   `;
 }
 
+let loadingEl = null;
+
+function showLoading() {
+    if (loadingEl) return;
+
+    loadingEl = document.createElement("div");
+    loadingEl.className = "d-flex justify-content-start mb-2";
+    loadingEl.innerHTML = `
+    <div class="bg-light border p-2 rounded-3 text-muted fst-italic"
+         style="max-width: 70%">
+      AI is typing…
+    </div>
+  `;
+    chatLogs.appendChild(loadingEl);
+    chatLogs.scrollTop = chatLogs.scrollHeight;
+}
+
+function hideLoading() {
+    if (!loadingEl) return;
+    loadingEl.remove();
+    loadingEl = null;
+}
+
 sendButton.addEventListener("click", async () => {
-  const userMessage = chatTextArea.value.trim();
-  if (!userMessage) return;
+    const userMessage = chatTextArea.value.trim();
+    if (!userMessage) return;
 
-  addUserMessage(userMessage);
-  chatTextArea.value = "";
+    addUserMessage(userMessage);
+    chatTextArea.value = "";
 
-  chatHistory.push({
-    role: "user",
-    text: userMessage,
-  });
+    chatHistory.push({
+        role: "user",
+        text: userMessage,
+    });
 
-  chatLogs.scrollTop = chatLogs.scrollHeight;
+    chatLogs.scrollTop = chatLogs.scrollHeight;
 
-  const response = await fetch(
-    "https://chatgemini-zoxcu4jcta-uc.a.run.app",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        history: chatHistory,
-        message: userMessage,
-      }),
+    showLoading();
+    sendButton.disabled = true;
+
+    try {
+        const response = await fetch(
+            "https://chatgemini-zoxcu4jcta-uc.a.run.app",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    history: chatHistory,
+                    message: userMessage,
+                }),
+            }
+        );
+
+        const data = (await response.text()).trim();
+
+        hideLoading();
+        sendButton.disabled = false;
+        addAIMessage(data);
+
+        chatHistory.push({
+            role: "model",
+            text: data,
+        });
+        chatLogs.scrollTop = chatLogs.scrollHeight;
+
+    } catch (err) {
+        hideLoading();
+        addAIMessage("_Error: failed to get response_");
     }
-  );
-
-  const data = await response.text();
-
-  addAIMessage(data);
-
-  chatHistory.push({
-    role: "model",
-    text: data,
-  });
-
-  chatLogs.scrollTop = chatLogs.scrollHeight;
 });
 
 chatTextArea.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendButton.click();
-  }
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendButton.click();
+    }
 });
 
 chatTextArea.addEventListener("input", () => {
-  chatTextArea.style.height = "auto";
-  chatTextArea.style.height = chatTextArea.scrollHeight + "px";
+    chatTextArea.style.height = "auto";
+    chatTextArea.style.height = chatTextArea.scrollHeight + "px";
 });
