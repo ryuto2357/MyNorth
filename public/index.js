@@ -1,3 +1,22 @@
+marked.setOptions({
+  breaks: true,
+  mangle: false,
+  headerIds: false,
+});
+
+function renderMarkdown(mdText) {
+  const rawHtml = marked.parse(mdText);
+  const cleanHtml = DOMPurify.sanitize(rawHtml);
+  return cleanHtml;
+}
+
+function escapeHTML(text) {
+  const div = document.createElement("div");
+  div.innerText = text;
+  return div.innerHTML;
+}
+
+
 const chatTextArea = document.getElementById("chatTextArea");
 const sendButton = document.getElementById("sendButton");
 const chatLogs = document.getElementById("chatLogs");
@@ -8,17 +27,19 @@ function addUserMessage(text) {
   chatLogs.innerHTML += `
     <div class="d-flex justify-content-end mb-2">
       <div class="bg-success text-white p-2 rounded-3" style="max-width: 70%">
-        ${text}
+        ${escapeHTML(text)}
       </div>
     </div>
   `;
 }
 
 function addAIMessage(text) {
+  const html = renderMarkdown(text);
+
   chatLogs.innerHTML += `
     <div class="d-flex justify-content-start mb-2">
       <div class="bg-light border p-2 rounded-3" style="max-width: 70%">
-        ${text}
+        ${html}
       </div>
     </div>
   `;
@@ -28,11 +49,9 @@ sendButton.addEventListener("click", async () => {
   const userMessage = chatTextArea.value.trim();
   if (!userMessage) return;
 
-  // 1️⃣ show user message
   addUserMessage(userMessage);
   chatTextArea.value = "";
 
-  // 2️⃣ save user message to history
   chatHistory.push({
     role: "user",
     text: userMessage,
@@ -40,7 +59,6 @@ sendButton.addEventListener("click", async () => {
 
   chatLogs.scrollTop = chatLogs.scrollHeight;
 
-  // 3️⃣ send history + new message to backend
   const response = await fetch(
     "https://chatgemini-zoxcu4jcta-uc.a.run.app",
     {
@@ -55,10 +73,8 @@ sendButton.addEventListener("click", async () => {
 
   const data = await response.text();
 
-  // 4️⃣ show AI reply
   addAIMessage(data);
 
-  // 5️⃣ save AI reply to history
   chatHistory.push({
     role: "model",
     text: data,
