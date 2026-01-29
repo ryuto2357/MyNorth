@@ -83,3 +83,14 @@ sendButton.addEventListener("click", async () => {
   chatLogs.scrollTop = chatLogs.scrollHeight;
 });
 
+chatTextArea.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendButton.click();
+  }
+});
+
+chatTextArea.addEventListener("input", () => {
+  chatTextArea.style.height = "auto";
+  chatTextArea.style.height = chatTextArea.scrollHeight + "px";
+});
