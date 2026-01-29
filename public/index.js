@@ -1,3 +1,26 @@
+const STORAGE_KEY = "mynorth_chat";
+const MAX_MESSAGES = 20;
+function trimHistory() {
+  if (chatHistory.length > MAX_MESSAGES) {
+    chatHistory.splice(0, chatHistory.length - MAX_MESSAGES);
+  }
+}
+
+function saveChat() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+}
+
+function loadChat() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return [];
+
+    try {
+        return JSON.parse(saved);
+    } catch {
+        return [];
+    }
+}
+
 marked.setOptions({
     breaks: true,
     mangle: false,
@@ -21,7 +44,8 @@ const chatTextArea = document.getElementById("chatTextArea");
 const sendButton = document.getElementById("sendButton");
 const chatLogs = document.getElementById("chatLogs");
 
-const chatHistory = [];
+const chatHistory = loadChat();
+renderHistory();
 
 function addUserMessage(text) {
     chatLogs.innerHTML += `
@@ -79,6 +103,8 @@ sendButton.addEventListener("click", async () => {
         role: "user",
         text: userMessage,
     });
+    trimHistory();
+    saveChat();
 
     chatLogs.scrollTop = chatLogs.scrollHeight;
 
@@ -108,6 +134,8 @@ sendButton.addEventListener("click", async () => {
             role: "model",
             text: data,
         });
+        trimHistory();
+        saveChat();
         chatLogs.scrollTop = chatLogs.scrollHeight;
 
     } catch (err) {
@@ -127,3 +155,17 @@ chatTextArea.addEventListener("input", () => {
     chatTextArea.style.height = "auto";
     chatTextArea.style.height = chatTextArea.scrollHeight + "px";
 });
+
+function renderHistory() {
+    chatLogs.innerHTML = "";
+
+    for (const msg of chatHistory) {
+        if (msg.role === "user") {
+            addUserMessage(msg.text);
+        } else {
+            addAIMessage(msg.text);
+        }
+    }
+
+    chatLogs.scrollTop = chatLogs.scrollHeight;
+}
