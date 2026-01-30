@@ -1,3 +1,11 @@
+require('dotenv').config();
+const OpenAI = require('openai');
+
+const deepseek = new OpenAI({
+  baseURL: 'https://api.deepseek.com',
+  apiKey: process.env.DEEPSEEK_API_KEY
+});
+
 const STORAGE_KEY = "mynorth_chat";
 const MAX_MESSAGES = 20;
 function trimHistory() {
@@ -131,24 +139,32 @@ sendButton.addEventListener("click", async () => {
 
         let data = (await response.text()).trim();
 
-        if (data.includes("SIMPLE")) {
+        if (data.includes("COMPLEX")) {
+            console.log("Using DeepSeek (Complex prompt)");
+          
+            const responseDeep = await deepseek.chat.completions.create({
+                messages: [{role: "user", content: userMessage}],
+                model: "deepseek-reasoner",
+            });
+
+            data = completion.choices[0].message.content
+        } else if (data.includes("SIMPLE")) {
+            console.log("Using Gemini (Simple prompt)");
+          
             const responseFast = await fetch(
-              "https://chatgemini-zoxcu4jcta-uc.a.run.app",
-              {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                      history: chatHistory,
-                      message: userMessage,
-                  }),
-              }
-          );
+                "https://chatgemini-zoxcu4jcta-uc.a.run.app",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        history: chatHistory,
+                        message: userMessage,
+                    }),
+                }
+            );
 
-          data = (await responseFast.text()).trim();
-        } else if (data.includes("COMPLEX")) {
-          // Include DeepSeek
+            data = (await responseFast.text()).trim();
         }
-
       
         hideLoading();
         sendButton.disabled = false;
