@@ -58,6 +58,7 @@ exports.chatGemini = onRequest({
     finalText = response.text;
   }
 
+  finalText = "Model used: " + (decision == "COMPLEX" ? "DeepSeek" : "Gemini 3 Flash") + "\n\n" + finalText;
 
   res.status(200).send(finalText);
 });
