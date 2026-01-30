@@ -119,13 +119,37 @@ sendButton.addEventListener("click", async () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     history: chatHistory,
-                    message: userMessage,
+                    message: `Analyze the following user prompt.
+                    Does it require deep reasoning (complex math, coding, advanced logic) or is it a simple request (writing, summary, chit-chat, simple facts)?
+                    
+                    Respond with ONLY one word: "COMPLEX" or "SIMPLE".
+                    
+                    User prompt: ${userMessage}`,
                 }),
             }
         );
 
-        const data = (await response.text()).trim();
+        let data = (await response.text()).trim();
 
+        if (data.includes("SIMPLE")) {
+            const responseFast = await fetch(
+              "https://chatgemini-zoxcu4jcta-uc.a.run.app",
+              {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                      history: chatHistory,
+                      message: userMessage,
+                  }),
+              }
+          );
+
+          data = (await responseFast.text()).trim();
+        } else if (data.includes("COMPLEX")) {
+          // Include DeepSeek
+        }
+
+      
         hideLoading();
         sendButton.disabled = false;
         addAIMessage(data);
