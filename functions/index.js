@@ -1,10 +1,10 @@
 const {defineSecret} = require("firebase-functions/params");
 const {GoogleGenAI} = require("@google/genai");
 const {onRequest} = require("firebase-functions/https");
+const {OpenAI} = require("openai");
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const DEEPSEEK_API_KEY = defineSecret("DEEPSEEK_API_KEY");
-
 
 exports.chatGemini = onRequest({
   cors: true, secrets: [GEMINI_API_KEY, DEEPSEEK_API_KEY],
@@ -66,28 +66,24 @@ exports.chatGemini = onRequest({
 });
 
 async function callDeepSeek(message, history) {
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${DEEPSEEK_API_KEY.value()}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "deepseek-chat",
-      messages: [
-        ...history.map((m) => ({
-          role: m.role,
-          content: m.text,
-        })),
-        {
-          role: "user",
-          content: message,
-        },
-      ],
-    }),
+  const openai = new OpenAI({
+    baseURL: "https://api.deepseek.com",
+    apiKey: DEEPSEEK_API_KEY.value(),
   });
 
-  const data = await response.json();
+  const completion = await openai.chat.completions.create({
+    model: "deepseek-chat",
+    messages: [
+      ...history.map((m) => ({
+        role: m.role,
+        content: m.text,
+      })),
+      {
+        role: "user",
+        content: message,
+      },
+    ],
+  });
 
-  return data.choices[0].message.content;
+  return completion.choices[0].message.content;
 }
