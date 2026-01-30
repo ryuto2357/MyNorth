@@ -57,13 +57,16 @@ function addUserMessage(text) {
   `;
 }
 
-function addAIMessage(text) {
-    const html = renderMarkdown(text);
+function addAIMessage(text, model = "AI") {
+  const html = renderMarkdown(text);
 
-    chatLogs.innerHTML += `
+  chatLogs.innerHTML += `
     <div class="d-flex justify-content-start mb-2">
       <div class="bg-light border p-2 rounded-3" style="max-width: 70%">
         ${html}
+        <div class="text-muted small text-end mt-1">
+          ${escapeHTML(model)}
+        </div>
       </div>
     </div>
   `;
@@ -124,15 +127,16 @@ sendButton.addEventListener("click", async () => {
             }
         );
 
-        const data = (await response.text()).trim();
+        const data = await response.json();
 
         hideLoading();
         sendButton.disabled = false;
-        addAIMessage(data);
+        addAIMessage(data.message, data.model);
 
         chatHistory.push({
             role: "model",
-            text: data,
+            text: data.message,
+            model: data.model,
         });
         trimHistory();
         saveChat();
@@ -140,7 +144,7 @@ sendButton.addEventListener("click", async () => {
 
     } catch (err) {
         hideLoading();
-        addAIMessage("_Error: failed to get response_");
+        addAIMessage("_Error: failed to get response_", "System");
     }
 });
 
@@ -163,7 +167,7 @@ function renderHistory() {
         if (msg.role === "user") {
             addUserMessage(msg.text);
         } else {
-            addAIMessage(msg.text);
+            addAIMessage(msg.text, msg.model || "AI");
         }
     }
 
