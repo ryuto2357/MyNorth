@@ -16,6 +16,7 @@ module.exports = {
     "quotes": ["error", "double", {"allowTemplateLiterals": true}],
     "require-jsdoc": "off",
     "max-len": "off",
+    "no-unused-vars": "off",
   },
   overrides: [
     {

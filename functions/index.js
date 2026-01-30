@@ -42,7 +42,8 @@ exports.chatGemini = onRequest({
   let finalText;
 
   if (decision == "COMPLEX") {
-    finalText = await callDeepSeek(message, history);
+    finalText = "DeepSeek model currently on maintenance...";
+    // finalText = await callDeepSeek(message, history);
   } else {
     const chat = await ai.chats.create({
       model: "gemini-3-flash-preview",
@@ -58,9 +59,10 @@ exports.chatGemini = onRequest({
     finalText = response.text;
   }
 
-  finalText = "Model used: " + (decision == "COMPLEX" ? "DeepSeek" : "Gemini 3 Flash") + "\n\n" + finalText;
-
-  res.status(200).send(finalText);
+  res.status(200).json({
+    model: decision == "COMPLEX" ? "DeepSeek" : "Gemini 3 Flash",
+    message: finalText,
+  });
 });
 
 async function callDeepSeek(message, history) {
