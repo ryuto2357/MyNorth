@@ -42,6 +42,8 @@ function renderMath(text) {
     const latex = displayMath || inlineMath;
     const isBlockDisplay = !!displayMath;
 
+    latex = latex ? latex.trim() : "";
+
     try {
       return katex.renderToString(latex, {
         throwOnError: false,
@@ -78,7 +80,7 @@ function addUserMessage(text) {
 }
 
 function addAIMessage(text, model = "AI") {
-  const html = renderMath(renderMarkdown(text));
+  const html = renderMath(text);
 
   chatLogs.innerHTML += `
     <div class="d-flex justify-content-start mb-2">
