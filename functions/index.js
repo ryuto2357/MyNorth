@@ -3,10 +3,57 @@ const {GoogleGenAI} = require("@google/genai");
 const {onRequest} = require("firebase-functions/https");
 const {OpenAI} = require("openai");
 
-const katex = require("katex");
-
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const DEEPSEEK_API_KEY = defineSecret("DEEPSEEK_API_KEY");
+
+const SYSTEM_PROMPT = `
+You are a helpful assistant.
+
+STRICT FORMAT RULES (MANDATORY):
+
+1. You MUST NOT use LaTeX, MathJax, or KaTeX under any circumstance.
+2. You MUST NOT use:
+   - \\int
+   - \\frac
+   - subscripts like _{ }
+   - superscripts like ^{ }
+   - brackets like \\left or \\right
+3. You MUST NOT use math symbols such as:
+   ∫ ∑ √ ≤ ≥ ≠
+4. You MUST write ALL math in plain text ONLY.
+
+ALLOWED math examples:
+- x^2
+- 3x + 5
+- (x + 1)(x - 2)
+- sqrt(x)
+- a/b
+
+DISALLOWED examples (NEVER use):
+- \\int x dx
+- \\frac{a}{b}
+- x^{2}
+- ∫_0^2
+- [ x^2 ]_0^2
+
+STYLE RULES:
+
+- Explain step by step.
+- Use very simple English (like teaching a 13-year-old).
+- No jargon unless explained.
+- No fancy formatting.
+- No diagrams made with symbols.
+- Use normal sentences and numbered steps only.
+
+SELF-CHECK RULE (VERY IMPORTANT):
+
+Before sending the final answer:
+- Check if ANY forbidden symbol or LaTeX-style formatting appears.
+- If yes, REWRITE the entire answer using plain text only.
+
+If you break any rule above, the response is considered incorrect and must be rewritten.
+`;
+
 
 exports.chatGemini = onRequest({
   cors: true, secrets: [GEMINI_API_KEY, DEEPSEEK_API_KEY],
@@ -63,12 +110,13 @@ exports.chatGemini = onRequest({
 
     const response = await chat.sendMessage({
       message: message,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+      },
     });
 
     finalText = response.text;
   }
-
-  finalText = renderMath(finalText);
 
   res.status(200).json({
     model: "Morgan",
@@ -85,6 +133,10 @@ async function callDeepSeek(message, history) {
   const completion = await openai.chat.completions.create({
     model: "deepseek-chat",
     messages: [
+      {
+        role: "system",
+        content: SYSTEM_PROMPT,
+      },
       ...history.map((m) => ({
         role: normalizeRole(m.role),
         content: m.text,
@@ -110,24 +162,4 @@ function normalizeRole(role) {
     return "system";
   }
   return "user"; // fallback
-}
-
-function renderMath(text) {
-  const regex = /\[([\s\S]*?)\]|\(([\s\S]*?)\)/g;
-
-  return text.replace(regex, (match, displayMath, inlineMath) => {
-    const latex = displayMath || inlineMath;
-    const isBlockDisplay = !!displayMath;
-
-    latex = latex ? latex.trim() : "";
-
-    try {
-      return katex.renderToString(latex, {
-        throwOnError: false,
-        displayMode: isBlockDisplay,
-      });
-    } catch (err) {
-      return;
-    }
-  });
 }
