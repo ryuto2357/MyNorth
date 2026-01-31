@@ -58,7 +58,7 @@ function addUserMessage(text) {
 }
 
 function addAIMessage(text, model = "AI") {
-  const html = renderMath(renderMarkdown(text));
+  const html = renderMarkdown(text);
 
   chatLogs.innerHTML += `
     <div class="d-flex justify-content-start mb-2">
