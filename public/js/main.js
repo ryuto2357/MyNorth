@@ -1,5 +1,3 @@
-const katex = require('katex');
-
 const STORAGE_KEY = "mynorth_chat";
 const MAX_MESSAGES = 20;
 function trimHistory() {
