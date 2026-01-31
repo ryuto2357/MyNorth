@@ -1,3 +1,5 @@
+const katex = require('katex');
+
 const STORAGE_KEY = "mynorth_chat";
 const MAX_MESSAGES = 20;
 function trimHistory() {
@@ -33,6 +35,24 @@ function renderMarkdown(mdText) {
     return cleanHtml;
 }
 
+function renderMath(text) {
+  const regex = /\[([\s\S]*?)\]|\(([\s\S]*?)\)/g;
+
+  return text.replace(regex, (match, displayMath, inlineMath) => {
+    const latex = displayMath || inlineMath
+    const isBlockDisplay = !!displayMath
+
+    try {
+      return katex.renderToString(latex, {
+        throwOnError: false,
+        displayMode: isBlockDisplay
+      });
+    } catch (err) {
+      return
+    }
+  });
+}
+
 function escapeHTML(text) {
     const div = document.createElement("div");
     div.innerText = text;
@@ -58,7 +78,7 @@ function addUserMessage(text) {
 }
 
 function addAIMessage(text, model = "AI") {
-  const html = renderMarkdown(text);
+  const html = renderMath(renderMarkdown(text));
 
   chatLogs.innerHTML += `
     <div class="d-flex justify-content-start mb-2">
