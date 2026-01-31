@@ -3,6 +3,8 @@ const {GoogleGenAI} = require("@google/genai");
 const {onRequest} = require("firebase-functions/https");
 const {OpenAI} = require("openai");
 
+const katex = require("katex");
+
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const DEEPSEEK_API_KEY = defineSecret("DEEPSEEK_API_KEY");
 
@@ -66,6 +68,8 @@ exports.chatGemini = onRequest({
     finalText = response.text;
   }
 
+  finalText = renderMath(finalText);
+
   res.status(200).json({
     model: "Morgan",
     message: finalText,
@@ -106,4 +110,24 @@ function normalizeRole(role) {
     return "system";
   }
   return "user"; // fallback
+}
+
+function renderMath(text) {
+  const regex = /\[([\s\S]*?)\]|\(([\s\S]*?)\)/g;
+
+  return text.replace(regex, (match, displayMath, inlineMath) => {
+    const latex = displayMath || inlineMath;
+    const isBlockDisplay = !!displayMath;
+
+    latex = latex ? latex.trim() : "";
+
+    try {
+      return katex.renderToString(latex, {
+        throwOnError: false,
+        displayMode: isBlockDisplay,
+      });
+    } catch (err) {
+      return;
+    }
+  });
 }

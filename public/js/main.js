@@ -35,26 +35,6 @@ function renderMarkdown(mdText) {
     return cleanHtml;
 }
 
-function renderMath(text) {
-  const regex = /\[([\s\S]*?)\]|\(([\s\S]*?)\)/g;
-
-  return text.replace(regex, (match, displayMath, inlineMath) => {
-    const latex = displayMath || inlineMath;
-    const isBlockDisplay = !!displayMath;
-
-    latex = latex ? latex.trim() : "";
-
-    try {
-      return katex.renderToString(latex, {
-        throwOnError: false,
-        displayMode: isBlockDisplay,
-      });
-    } catch (err) {
-      return;
-    }
-  });
-}
-
 function escapeHTML(text) {
     const div = document.createElement("div");
     div.innerText = text;
