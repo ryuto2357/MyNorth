@@ -1,4 +1,5 @@
-const katex = require('katex');
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 const STORAGE_KEY = "mynorth_chat";
 const MAX_MESSAGES = 20;
