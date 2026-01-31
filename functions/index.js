@@ -42,8 +42,15 @@ exports.chatGemini = onRequest({
   let finalText;
 
   if (decision == "COMPLEX") {
-    finalText = "DeepSeek model currently on maintenance...";
-    // finalText = await callDeepSeek(message, history);
+    try {
+      finalText = await callDeepSeek(message, history);
+    } catch (error) {
+      res.status(200).json({
+        model: "System",
+        message: error.message || "Error calling DeepSeek API",
+      });
+      return;
+    }
   } else {
     const chat = await ai.chats.create({
       model: "gemini-3-flash-preview",
@@ -60,7 +67,7 @@ exports.chatGemini = onRequest({
   }
 
   res.status(200).json({
-    model: decision == "COMPLEX" ? "DeepSeek" : "Gemini 3 Flash",
+    model: "Morgan",
     message: finalText,
   });
 });
@@ -75,7 +82,7 @@ async function callDeepSeek(message, history) {
     model: "deepseek-chat",
     messages: [
       ...history.map((m) => ({
-        role: m.role,
+        role: normalizeRole(m.role),
         content: m.text,
       })),
       {
@@ -86,4 +93,17 @@ async function callDeepSeek(message, history) {
   });
 
   return completion.choices[0].message.content;
+}
+
+function normalizeRole(role) {
+  if (role === "model" || role === "ai" || role === "assistant") {
+    return "assistant";
+  }
+  if (role === "human" || role === "user") {
+    return "user";
+  }
+  if (role === "system") {
+    return "system";
+  }
+  return "user"; // fallback
 }
