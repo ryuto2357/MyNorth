@@ -39,16 +39,16 @@ function renderMath(text) {
   const regex = /\[([\s\S]*?)\]|\(([\s\S]*?)\)/g;
 
   return text.replace(regex, (match, displayMath, inlineMath) => {
-    const latex = displayMath || inlineMath
-    const isBlockDisplay = !!displayMath
+    const latex = displayMath || inlineMath;
+    const isBlockDisplay = !!displayMath;
 
     try {
       return katex.renderToString(latex, {
         throwOnError: false,
-        displayMode: isBlockDisplay
+        displayMode: isBlockDisplay,
       });
     } catch (err) {
-      return
+      return;
     }
   });
 }
