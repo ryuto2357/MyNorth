@@ -203,7 +203,7 @@ function showLoading() {
     loadingEl.innerHTML = `
     <div class="bg-light border p-2 rounded-3 text-muted fst-italic"
          style="max-width: 70%">
-      AI is typing…
+      Morgan is thinking...
     </div>
   `;
     chatLogs.appendChild(loadingEl);
