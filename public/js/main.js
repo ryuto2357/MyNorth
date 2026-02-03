@@ -6,8 +6,17 @@ const sendButton = document.getElementById("sendButton");
 const chatLogs = document.getElementById("chatLogs");
 const chatTabs = document.getElementById("chatTabs");
 const newTabBtn = document.getElementById("newTabBtn");
+const testingForm = document.getElementById("userData");
 
 const themeToggle = document.getElementById("themeToggle");
+
+let userData = {
+  hoursRemaining: 200,
+  deadline: 100,
+  freeTime: 1.5,
+  skill: 0,
+  adherence: 90
+}
 
 function setTheme(theme) {
   document.body.setAttribute("data-theme", theme);
@@ -253,6 +262,7 @@ renderTabs();
         body: JSON.stringify({
           history: messages,
           message: userMessage,
+          userStats: userData,
         }),
       }
     );
@@ -349,3 +359,20 @@ function createNewTab() {
   renderHistory();
 }
 
+testingForm.addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const hours = document.getElementById('totalHours').value;
+  const deadline = document.getElementById('deadlineLength').value;
+  const freeTime = document.getElementById('freeTime').value;
+  const skill = document.getElementById('skillGap').value;
+  const adherence = document.getElementById('adherence').value;
+
+  userData.hoursRemaining = parseFloat(hours);
+  userData.deadline = parseInt(deadline);
+  userData.freeTime = parseFloat(freeTime);
+  userData.skill = parseInt(skill);
+  userData.adherence = parseInt(adherence);
+
+  console.log(userData);
+});

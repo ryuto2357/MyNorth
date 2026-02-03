@@ -61,7 +61,7 @@ If you break any rule above, the response is considered incorrect and must be re
 exports.chatGemini = onRequest({
   cors: true, secrets: [GEMINI_API_KEY, DEEPSEEK_API_KEY],
 }, async (req, res) => {
-  const {history = [], message} = req.body;
+  const {history = [], message, userStats} = req.body;
   if (!message) {
     return res.status(400).send("Message is required");
   }
@@ -76,9 +76,10 @@ exports.chatGemini = onRequest({
   Rules:
   - SIMPLE: casual chat, short answers, basic explanations
   - COMPLEX: coding, math, multi-step reasoning, long analysis
+  - PLANNING: task generation, scheduling, setting goals
 
   Reply with ONLY one word:
-  SIMPLE or COMPLEX
+  SIMPLE, COMPLEX, or PLANNING
 
   User message:
   "${message}"
@@ -93,13 +94,23 @@ exports.chatGemini = onRequest({
 
   let finalText;
 
-  if (decision == "COMPLEX") {
+  if (decision.includes("COMPLEX")) {
     try {
       finalText = await callDeepSeek(message, history);
     } catch (error) {
       res.status(200).json({
         model: "System",
         message: error.message || "Error calling DeepSeek API",
+      });
+      return;
+    }
+  } else if (decision.includes("PLANNING")) {
+    try {
+      finalText = await planAI(message, history, userStats);
+    } catch (error) {
+      res.status(200).json({
+        model: "System",
+        message: error.message || "Error calling Gemini API",
       });
       return;
     }
@@ -126,6 +137,19 @@ exports.chatGemini = onRequest({
     message: finalText,
   });
 });
+
+async function planAI(message, history, userStats) {
+  const FORMULA_PROMPT = `
+  Based on these variables:
+  - h = Hours Remaining: ${userStats.hoursRemaining}
+  - d = Deadline (in days): ${userStats.deadline}
+  - f = Free Time / day (in hours): ${userStats.freeTime}
+  - s = Familiarity (out of 10): ${userStats.skill}
+  - h = Adherence (out of 100%): ${userStats.adherence}
+
+
+  `
+}
 
 async function callDeepSeek(message, history) {
   const openai = new OpenAI({
