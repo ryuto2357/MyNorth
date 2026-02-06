@@ -1,68 +1,556 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MyNorth</title>
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyNorth | Introducing Morgan</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/chat.css" />
+    <style>
+        :root {
+            --primary-green: #00C853; /* Bright Google Green */
+            --deep-green: #061e12;    /* Dark background green */
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text-dark: #1a1a1a;
+            --text-light: #ffffff;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--deep-green);
+            overflow-x: hidden;
+            color: var(--text-light);
+        }
+
+        /* --- Neural Network Background --- */
+        #neural-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1; /* Behind everything */
+            background: radial-gradient(circle at center, #0b3520 0%, #000000 100%);
+        }
+
+        /* --- Navbar --- */
+        .navbar {
+            background: rgba(6, 30, 18, 0.6);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 200, 83, 0.2);
+            transition: all 0.3s ease;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: var(--text-light) !important;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar-brand span {
+            color: var(--primary-green);
+        }
+
+        .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+            font-weight: 500;
+            margin: 0 10px;
+            position: relative;
+            transition: color 0.3s;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--primary-green) !important;
+        }
+
+        /* --- Antigravity Utilities --- */
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-delay-1 { animation-delay: 0s; }
+        .floating-delay-2 { animation-delay: 2s; }
+        .floating-delay-3 { animation-delay: 4s; }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* --- Hero Section --- */
+        .hero-section {
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            padding-top: 80px;
+        }
+
+        .hero-content h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .hero-content h1 span {
+            color: var(--primary-green);
+            display: inline-block;
+            position: relative;
+        }
+
+        /* The "Morgan" name glows like a node */
+        .hero-content h1 span::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            box-shadow: 0 0 20px var(--primary-green);
+            opacity: 0.5;
+            z-index: -1;
+            border-radius: 50%;
+            filter: blur(10px);
+        }
+
+        .hero-content p {
+            font-size: 1.25rem;
+            color: rgba(255,255,255,0.8);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* --- Feature Cards --- */
+        .features-section {
+            padding: 5rem 0;
+            position: relative;
+            z-index: 10;
+        }
+
+        .feature-card-container {
+            perspective: 1000px; /* Essential for 3D tilt */
+            margin-bottom: 3rem;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            color: var(--text-dark);
+            border: none;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out; /* Fast response for mouse move */
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Subtle top border */
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: var(--primary-green);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            display: inline-block;
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 50%;
+        }
+
+        .feature-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-top: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            /* The image inside looks like it is floating off the card */
+            transform: translateZ(20px); 
+        }
+
+        .card-header-text {
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            transform: translateZ(10px); /* Text floats above bg */
+        }
+
+        .card-desc {
+            color: #555;
+            line-height: 1.6;
+            transform: translateZ(5px);
+        }
+
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(0,0,0,0.3);
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9rem;
+        }
+
+        /* --- Mobile Adjustments --- */
+        @media (max-width: 768px) {
+            .hero-content h1 {
+                font-size: 2.5rem;
+            }
+            .feature-card {
+                transform: none !important; /* Disable tilt on mobile for better touch */
+            }
+        }
+    </style>
 </head>
-<body>
-  <div class="container mt-4">
-    <div class="card shadow-sm">
+<body data-bs-spy="scroll" data-bs-target="#navbar" data-bs-offset="100">
 
-      <!-- Tabs Header -->
-      <div class="card-header d-flex align-items-center p-0">
-        <ul class="nav nav-tabs flex-grow-1" id="chatTabs"></ul>
-        <button
-  class="btn btn-sm btn-outline-secondary m-2"
-  id="themeToggle"
-  title="Toggle dark mode"
->
-  🌙
-</button>
+    <!-- Neural Network Animation Background -->
+    <canvas id="neural-canvas"></canvas>
 
-<button
-  class="btn btn-sm btn-success m-2"
-  id="newTabBtn"
-  title="New chat"
->
-  +
-</button>
-      </div>
-
-      <!-- Chat Logs -->
-      <div
-        class="card-body overflow-auto"
-        id="chatLogs"
-        style="height: 70vh;"
-      ></div>
-
-      <!-- Input -->
-      <div class="card-footer">
-        <div class="input-group">
-          <textarea
-            class="form-control border-success shadow-sm"
-            id="chatTextArea"
-            placeholder="Type your message..."
-            rows="1"
-          ></textarea>
-          <button class="btn btn-success px-4" id="sendButton">
-            Send
-          </button>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top" id="navbar">
+        <div class="container">
+            <a class="navbar-brand floating" href="#">
+                <span>▲</span> MyNorth
+            </a>
+            <button class="navbar-toggler navbar-dark" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">Morgan</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="login.html">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">Dashboard</a>
+                    </li>
+                </ul>
+            </div>
         </div>
-      </div>
+    </nav>
 
-    </div>
-  </div>
+    <!-- Hero / Intro Section -->
+    <header class="hero-section" id="morgan-intro">
+        <div class="container hero-content">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <!-- Animated entrance for text -->
+                    <h1 class="animate-up">Meet <span>Morgan</span></h1>
+                    <p class="lead animate-up" style="animation-delay: 0.2s;">
+                        The neural engine powering the next generation of navigation. 
+                        Lightweight, intuitive, and constantly learning.
+                    </p>
+                    <div class="mt-4 animate-up" style="animation-delay: 0.4s;">
+                        <a href="#features" class="btn btn-outline-light btn-lg rounded-pill px-5" style="border: 1px solid var(--primary-green); color: var(--primary-green);">Explore System</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.7/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
-  <script src="js/main.js"></script>
+    <!-- Features Section -->
+    <section class="features-section" id="features">
+        <div class="container">
+            <div class="row g-4">
+                
+                <!-- Feature 1 -->
+                <div class="col-md-4 feature-card-container floating floating-delay-1">
+                    <div class="feature-card tilt-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3 class="card-header-text">Cognitive Mapping</h3>
+                        <p class="card-desc">
+                            Morgan creates a 3D understanding of user intent, predicting needs before they are explicitly stated. Like a compass for the mind.
+                        </p>
+                        <img src="https://picsum.photos/seed/brain/400/200" alt="Cognitive Mapping Visualization" class="feature-img">
+                    </div>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="col-md-4 feature-card-container floating floating-delay-2">
+                    <div class="feature-card tilt-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3 class="card-header-text">Instant Synthesis</h3>
+                        <p class="card-desc">
+                            Processing vast datasets in milliseconds. Morgan transforms raw data into actionable wisdom with zero latency.
+                        </p>
+                        <img src="https://picsum.photos/seed/speed/400/200" alt="Speed Visualization" class="feature-img">
+                    </div>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="col-md-4 feature-card-container floating floating-delay-3">
+                    <div class="feature-card tilt-card">
+                        <div class="feature-icon">🌐</div>
+                        <h3 class="card-header-text">Global Context</h3>
+                        <p class="card-desc">
+                            Connects local queries to global trends. Morgan ensures you always have the 'North Star' perspective on any topic.
+                        </p>
+                        <img src="https://picsum.photos/seed/network/400/200" alt="Global Network Visualization" class="feature-img">
+                    </div>
+                </div>
+
+                <!-- Feature 4 (Additional to fill template) -->
+                <div class="col-md-6 feature-card-container floating floating-delay-1">
+                    <div class="feature-card tilt-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3 class="card-header-text">Secure Core</h3>
+                        <p class="card-desc">
+                            Built with privacy at its genesis. Morgan's neural weights are encrypted and isolated, ensuring your data remains your own.
+                        </p>
+                        <img src="https://picsum.photos/seed/lock/600/300" alt="Security Visualization" class="feature-img">
+                    </div>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="col-md-6 feature-card-container floating floating-delay-2">
+                    <div class="feature-card tilt-card">
+                        <div class="feature-icon">🌿</div>
+                        <h3 class="card-header-text">Organic Growth</h3>
+                        <p class="card-desc">
+                            Unlike static algorithms, Morgan grows with you. The more you interact, the more personalized and efficient the neural pathways become.
+                        </p>
+                        <img src="https://picsum.photos/seed/growth/600/300" alt="Growth Visualization" class="feature-img">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2023 MyNorth AI Systems. All rights reserved.</p>
+            <p style="font-size: 0.8rem; opacity: 0.6;">Designed in the style of Antigravity.</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Animation Scripts -->
+    <script>
+        /**
+         * 1. Neural Network Background Animation
+         * Creates particles that float and connect when close (synapses).
+         * Inspired by brain neural pathways.
+         */
+        const canvas = document.getElementById('neural-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let particles = [];
+        
+        // Configuration
+        const particleCount = 60; // Number of 'neurons'
+        const connectionDistance = 150; // Distance to connect synapses
+        const mouseDistance = 200; // Interaction radius
+
+        // Mouse tracking
+        let mouse = { x: null, y: null };
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.x;
+            mouse.y = e.y;
+        });
+        // Clear mouse interaction on leave
+        window.addEventListener('mouseout', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.5; // Slow horizontal float
+                this.vy = (Math.random() - 0.5) * 0.5; // Slow vertical float
+                this.size = Math.random() * 2 + 1;
+                // "Antigravity" feel: random upward bias
+                this.vy = Math.abs(this.vy) * -1 * 0.5 + (Math.random() * 0.2 - 0.1); 
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wrap around screen
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+
+                // Mouse Interaction (Repel slightly to create space)
+                if (mouse.x != null) {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < mouseDistance) {
+                        const forceDirectionX = dx / distance;
+                        const forceDirectionY = dy / distance;
+                        const force = (mouseDistance - distance) / mouseDistance;
+                        const directionX = forceDirectionX * force * 2;
+                        const directionY = forceDirectionY * force * 2;
+                        
+                        this.x -= directionX;
+                        this.y -= directionY;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = '#00C853'; // Bright Green
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+
+                // Draw connections (Synapses)
+                for (let j = i; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < connectionDistance) {
+                        ctx.beginPath();
+                        // Opacity based on distance (stronger connection = closer)
+                        let opacity = 1 - (distance / connectionDistance);
+                        ctx.strokeStyle = `rgba(0, 200, 83, ${opacity * 0.4})`;
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize Canvas
+        resize();
+        initParticles();
+        animate();
+
+
+        /**
+         * 2. Antigravity 3D Tilt Effect for Cards
+         * Calculates the tilt of the card based on mouse position relative to the card center.
+         */
+        const cards = document.querySelectorAll('.tilt-card');
+
+        cards.forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left; // x position within the element
+                const y = e.clientY - rect.top;  // y position within the element
+                
+                // Calculate percentage from center
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                const rotateX = ((y - centerY) / centerY) * -10; // Max rotation deg
+                const rotateY = ((x - centerX) / centerX) * 10;
+
+                // Apply transform
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+            });
+
+            // Reset on mouse leave
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+            });
+        });
+
+        /**
+         * 3. Scroll Animations for Hero Text
+         */
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = 1;
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Apply fade-in animation styles via JS to keep CSS clean
+        document.querySelectorAll('.animate-up').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = 'all 0.8s ease-out';
+            observer.observe(el);
+        });
+
+    </script>
 </body>
 </html>

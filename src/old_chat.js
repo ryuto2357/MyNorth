@@ -349,3 +349,7 @@ function createNewTab() {
   renderHistory();
 }
 
+
+import dayjs from "dayjs";
+
+console.log(dayjs().format());
