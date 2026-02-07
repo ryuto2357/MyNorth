@@ -9,6 +9,7 @@ export default {
     login: "./src/login.js",
     index: "./src/index.js",
     dashboard: "./src/dashboard.js",
+    constellation: "./src/constellation.js",
   },
   output: {
     filename: "[name].bundle.js",
