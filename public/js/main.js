@@ -15,7 +15,44 @@ let userData = {
   deadline: 100,
   freeTime: 1.5,
   skill: 0,
-  adherence: 90
+  adherence: 90,
+
+  // formula variables
+  cLoad: 0.0,
+  sGap: 1.0,
+  history: 0.0,
+
+  dailyLoad: function() {
+    return (this.hoursRemaining/this.deadline) * (1 + (this.cLoad * this.sGap + this.history));
+  }
+}
+
+function setFormulaVariables() {
+  if (userData.freeTime > 4.0) {
+    userData.cLoad = 0.1;
+  } else if (userData.freeTime >= 2.0) {
+    userData.cLoad = 0.2;
+  } else if (userData.freeTime >= 1.0) {
+    userData.cLoad = 0.3;
+  } else {
+    userData.cLoad = 0.5;
+  }
+
+  if (userData.skill > 7) {
+    userData.sGap = 1.0;
+  } else if (userData.skill >= 4) {
+    userData.sGap = 1.5;
+  } else {
+    userData.sGap = 2.0;
+  }
+
+  if (userData.adherence > 79) {
+    userData.history = 0.0;
+  } else if (userData.adherence >= 50) {
+    userData.history = 0.2;
+  } else {
+    userData.history = 0.4;
+  }
 }
 
 function setTheme(theme) {
@@ -373,6 +410,8 @@ testingForm.addEventListener('submit', function(e) {
   userData.freeTime = parseFloat(freeTime);
   userData.skill = parseInt(skill);
   userData.adherence = parseInt(adherence);
+
+  setFormulaVariables();
 
   console.log(userData);
 });

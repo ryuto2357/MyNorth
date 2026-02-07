@@ -3,6 +3,9 @@ const {GoogleGenAI} = require("@google/genai");
 const {onRequest} = require("firebase-functions/https");
 const {OpenAI} = require("openai");
 
+// to use console.log()
+require("firebase-functions/logger/compat");
+
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const DEEPSEEK_API_KEY = defineSecret("DEEPSEEK_API_KEY");
 
@@ -44,7 +47,7 @@ STYLE RULES:
 - Explain step by step.
 - Use very simple English (like teaching a 13-year-old).
 - No jargon unless explained.
-- No fancy formatting.
+- Use formatting (headers, bold/italic text, etc).
 - No diagrams made with symbols.
 - Use normal sentences and numbered steps only.
 
@@ -76,7 +79,7 @@ exports.chatGemini = onRequest({
   Rules:
   - SIMPLE: casual chat, short answers, basic explanations
   - COMPLEX: coding, math, multi-step reasoning, long analysis
-  - PLANNING: task generation, scheduling, setting goals
+  - PLANNING: task generation, scheduling, setting goals (anything that requires time to do)
 
   Reply with ONLY one word:
   SIMPLE, COMPLEX, or PLANNING
@@ -91,6 +94,8 @@ exports.chatGemini = onRequest({
   });
 
   const decision = classificationResult.text.trim().toUpperCase();
+
+  console.log(decision);
 
   let finalText;
 
@@ -139,16 +144,29 @@ exports.chatGemini = onRequest({
 });
 
 async function planAI(message, history, userStats) {
-  const FORMULA_PROMPT = `
+  const ai = new GoogleGenAI({
+    apiKey: GEMINI_API_KEY.value(),
+  });
+  
+  const formulaPrompt = `
   Based on these variables:
   - h = Hours Remaining: ${userStats.hoursRemaining}
   - d = Deadline (in days): ${userStats.deadline}
   - f = Free Time / day (in hours): ${userStats.freeTime}
   - s = Familiarity (out of 10): ${userStats.skill}
   - h = Adherence (out of 100%): ${userStats.adherence}
+  - D = Daily Load (in hours): ${userStats.dailyLoad()}
 
+  For each variable, state their value and what do they mean.
+  Then, explain what kind of tasks should be generated for the user.
+  `;
 
-  `
+  const result = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: formulaPrompt,
+  });
+
+  return result;
 }
 
 async function callDeepSeek(message, history) {
