@@ -9,9 +9,9 @@ admin.initializeApp({
 const db = admin.firestore();
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+exports.api = functions.https.onRequest(app);
 
-app.get('/', async (req, res) => {
+app.get('/api/graph', async (req, res) => {
     const snapshot = await db.collection('nodes').get();
     const nodes = [];
     const links = [];
@@ -32,7 +32,7 @@ app.get('/', async (req, res) => {
     res.json({ nodes, links });
 });
 
-app.post('/', async (req, res) => {
+app.post('/nodes', async (req, res) => {
     const { label, content } = req.body;
     const newNode = {
         label,
@@ -45,7 +45,7 @@ app.post('/', async (req, res) => {
     res.json({ id: doc.id, ...newNode });
 });
 
-app.post('/', async (req, res) => {
+app.post('/links', async (req, res) => {
     const { sourceId, targetId } = req.body;
     
     // Use a batch to ensure both nodes update, or neither does
@@ -66,4 +66,5 @@ app.post('/', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8080;
+app.use(express.static(path.join(__dirname, 'public')));
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

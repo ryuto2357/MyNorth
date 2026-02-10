@@ -2,63 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obsidian Graph Sandbox</title>
+    <title>Node Physics Sandbox</title>
     <style>
-        body { margin: 0; font-family: sans-serif; overflow: hidden; display: flex; height: 100vh; }
+        body { margin: 0; overflow: hidden; background-color: #f4f4f9; }
+        svg { display: block; width: 100vw; height: 100vh; }
         
-        /* The Graph Container */
-        #graph-container { flex: 3; background: #0b0b0b; }
-
-        /* The Sidebar */
-        #sidebar {
-            flex: 1;
-            background: #202020;
-            color: #ccc;
-            padding: 20px;
-            border-left: 1px solid #444;
-            display: flex;
-            flex-direction: column;
-            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
-        }
-
-        /* UI Elements */
-        input, textarea {
-            background: #333; border: 1px solid #555; color: white;
-            width: 100%; padding: 8px; margin-bottom: 10px;
-            box-sizing: border-box;
-        }
-        button {
-            background: #7b68ee; color: white; border: none; padding: 10px;
-            cursor: pointer; width: 100%; font-weight: bold;
-        }
-        button:hover { background: #6a5acd; }
-        h2 { margin-top: 0; color: #fff; }
+        /* Styling for the elements */
+        line { stroke: #999; stroke-opacity: 0.6; stroke-width: 1.5px; }
+        circle { stroke: #fff; stroke-width: 1.5px; cursor: grab; }
+        circle:active { cursor: grabbing; }
     </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
+    <div id="sandbox"></div>
 
-    <div id="graph-container"></div>
-
-    <div id="sidebar">
-        <div id="node-details" style="display:none;">
-            <h2 id="detail-label"></h2>
-            <small id="detail-id"></small>
-            <hr style="border-color: #444;">
-            <p><strong>Content:</strong></p>
-            <textarea id="detail-content" rows="10"></textarea>
-            <button id="btn-close">Close Note</button>
-        </div>
-
-        <div id="create-section">
-            <h2>Add New Node</h2>
-            <input type="text" id="new-label" placeholder="Note Title">
-            <textarea id="new-content" placeholder="Note Content..." rows="3"></textarea>
-            <button onclick="createNode()">Create Node</button>
-        </div>
-    </div>
-
-    <script src="//cdn.jsdelivr.net/npm/force-graph@1.43.0/dist/force-graph.js"></script>
     <script src="./js/constellation.bundle.js"></script>
 </body>
 </html>

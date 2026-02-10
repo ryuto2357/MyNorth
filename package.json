@@ -20,6 +20,7 @@
     "watch": "webpack --watch --mode=development"
   },
   "dependencies": {
+    "d3": "^7.9.0",
     "dayjs": "^1.11.19",
     "firebase": "^12.8.0",
     "force-graph": "^1.51.1"
