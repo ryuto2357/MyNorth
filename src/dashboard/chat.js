@@ -7,7 +7,8 @@ import {
   query,
   orderBy,
   getDoc,
-  limit
+  limit,
+  deleteDoc
 } from "firebase/firestore";
 
 let currentPlanId = null;
@@ -149,6 +150,9 @@ function setupSendButton() {
       }
     );
 
+    // 🔥 Enforce max 30 messages
+    await enforceChatLimit(user.uid, currentPlanId);
+
     renderMessage({ role: "assistant", content: aiReply });
 
   } catch (error) {
@@ -274,4 +278,27 @@ function renderThinkingBubble() {
   container.scrollTop = container.scrollHeight;
 
   return wrapper; // IMPORTANT: return element so we can remove it later
+}
+
+// ==========================
+// Keep Only Last 30 Messages
+// ==========================
+async function enforceChatLimit(uid, planId) {
+
+  const chatsRef = collection(db, "users", uid, "plans", planId, "chats");
+
+  const snapshot = await getDocs(
+    query(chatsRef, orderBy("createdAt", "desc"))
+  );
+
+  const docs = snapshot.docs;
+
+  if (docs.length <= 30) return;
+
+  // Keep first 30 (newest), delete the rest
+  const docsToDelete = docs.slice(30);
+
+  for (const docSnap of docsToDelete) {
+    await deleteDoc(docSnap.ref);
+  }
 }
