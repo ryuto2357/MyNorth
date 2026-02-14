@@ -32,3 +32,9 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById("userVerified").textContent =
     user.emailVerified ? "Yes" : "No";
 });
+
+// Logout
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.replace("index.html");
+});
