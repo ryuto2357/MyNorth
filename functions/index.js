@@ -57,11 +57,33 @@ Before sending the final answer:
 If you break any rule above, the response is considered incorrect and must be rewritten.
 `;
 
+function buildSystemPrompt(planContext) {
+  if (!planContext) return SYSTEM_PROMPT;
+
+  return `
+  You are Morgan, an AI planning assistant inside MyNorth.
+
+  User current plan:
+  Goal: ${planContext.goal}
+  Duration: ${planContext.durationMonths} months
+  Level: ${planContext.level}
+  Progress: ${planContext.progress || 0} percent completed
+
+  Your job:
+  - Help the user achieve this goal.
+  - Give practical daily advice.
+  - Adjust suggestions based on progress.
+  - Encourage consistency.
+  - Be supportive but realistic.
+
+  ${SYSTEM_PROMPT}
+`;
+}
 
 exports.chatGemini = onRequest({
   cors: true, secrets: [GEMINI_API_KEY, DEEPSEEK_API_KEY],
 }, async (req, res) => {
-  const {history = [], message} = req.body;
+  const {history = [], message, planContext} = req.body;
   if (!message) {
     return res.status(400).send("Message is required");
   }
@@ -69,6 +91,7 @@ exports.chatGemini = onRequest({
   const ai = new GoogleGenAI({
     apiKey: GEMINI_API_KEY.value(),
   });
+  const dynamicSystemPrompt = buildSystemPrompt(planContext);
 
   const classificationPrompt = `
   Classify the user message.
@@ -95,7 +118,7 @@ exports.chatGemini = onRequest({
 
   if (decision == "COMPLEX") {
     try {
-      finalText = await callDeepSeek(message, history);
+      finalText = await callDeepSeek(message, history, dynamicSystemPrompt);
     } catch (error) {
       res.status(200).json({
         model: "System",
@@ -107,14 +130,15 @@ exports.chatGemini = onRequest({
     const chat = await ai.chats.create({
       model: "gemini-3-flash-preview",
       history: history.map((m) => ({
-        role: m.role, parts: [{text: m.text}],
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{text: m.text}],
       })),
     });
 
     const response = await chat.sendMessage({
       message: message,
       config: {
-        systemInstruction: SYSTEM_PROMPT,
+        systemInstruction: dynamicSystemPrompt,
       },
     });
 
@@ -127,7 +151,7 @@ exports.chatGemini = onRequest({
   });
 });
 
-async function callDeepSeek(message, history) {
+async function callDeepSeek(message, history, dynamicSystemPrompt) {
   const openai = new OpenAI({
     baseURL: "https://api.deepseek.com",
     apiKey: DEEPSEEK_API_KEY.value(),
@@ -138,7 +162,7 @@ async function callDeepSeek(message, history) {
     messages: [
       {
         role: "system",
-        content: SYSTEM_PROMPT,
+        content: dynamicSystemPrompt,
       },
       ...history.map((m) => ({
         role: normalizeRole(m.role),
