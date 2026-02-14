@@ -8,8 +8,9 @@ export default {
   entry: {
     login: "./src/login.js",
     index: "./src/index.js",
-    dashboard: "./src/dashboard.js",
+    dashboard: "./src/dashboard/dashboard.js",
     intro: "./src/intro.js",
+    newPlan: "./src/newPlan.js",
   },
   output: {
     filename: "[name].bundle.js",

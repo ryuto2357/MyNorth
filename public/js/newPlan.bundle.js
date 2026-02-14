@@ -170,26 +170,6 @@ eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpa
 
 /***/ },
 
-/***/ "./src/dashboard/dashboard.js"
-/*!************************************!*\
-  !*** ./src/dashboard/dashboard.js ***!
-  \************************************/
-(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
-
-eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var _firebase_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../firebase.js */ \"./src/firebase.js\");\n/* harmony import */ var firebase_auth__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! firebase/auth */ \"./node_modules/firebase/auth/dist/esm/index.esm.js\");\n/* harmony import */ var firebase_firestore__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! firebase/firestore */ \"./node_modules/firebase/firestore/dist/esm/index.esm.js\");\n/* harmony import */ var _plan_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./plan.js */ \"./src/dashboard/plan.js\");\n\n\n\n\n// import { loadChatTab } from \"./chat.js\";\n// import { loadCalendarTab } from \"./calendar.js\";\n\nconst tabContent = document.getElementById(\"tab-content\");\nconst tabs = document.querySelectorAll(\"[data-tab]\");\nconst logoutBtn = document.getElementById(\"logout-btn\");\n\n\n// ===============================\n// AUTH + PROFILE CHECK\n// ===============================\n(0,firebase_auth__WEBPACK_IMPORTED_MODULE_1__.onAuthStateChanged)(_firebase_js__WEBPACK_IMPORTED_MODULE_0__.auth, async (user) => {\n  if (!user) {\n    window.location.href = \"/login.html\";\n    return;\n  }\n\n  const userDocRef = (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_2__.doc)(_firebase_js__WEBPACK_IMPORTED_MODULE_0__.db, \"users\", user.uid);\n  const userDoc = await (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_2__.getDoc)(userDocRef);\n\n  if (!userDoc.exists()) {\n    window.location.href = \"/intro.html\";\n    return;\n  }\n\n  const profileData = userDoc.data();\n\n  // Set profile UI\n  document.getElementById(\"user-name\").textContent =\n    profileData.name || user.displayName || \"User\";\n\n  document.getElementById(\"user-email\").textContent =\n    user.email;\n\n  document.getElementById(\"user-photo\").src =\n    profileData.photoURL || user.photoURL || \"https://via.placeholder.com/40\";\n\n  // Load default tab\n  loadTab(\"plan\");\n});\n\n\n// ===============================\n// TAB SWITCHING\n// ===============================\nasync function loadTab(tabName) {\n\n  // remove active\n  tabs.forEach(tab => tab.classList.remove(\"active\"));\n  document\n    .querySelector(`[data-tab=\"${tabName}\"]`)\n    .classList.add(\"active\");\n\n  // load html\n  const response = await fetch(`/tabs/${tabName}.html`);\n  const html = await response.text();\n  tabContent.innerHTML = html;\n\n  // initialize logic\n  if (tabName === \"plan\") {\n    (0,_plan_js__WEBPACK_IMPORTED_MODULE_3__.loadPlanTab)();\n  }\n\n  // comment others for now so no error\n  // if (tabName === \"chat\") loadChatTab();\n  // if (tabName === \"calendar\") loadCalendarTab();\n}\n\n// tab click\ntabs.forEach(tab => {\n  tab.addEventListener(\"click\", () => {\n    const tabName = tab.getAttribute(\"data-tab\");\n    loadTab(tabName);\n  });\n});\n\n\n// ===============================\n// LOGOUT\n// ===============================\nlogoutBtn.addEventListener(\"click\", async () => {\n  await (0,firebase_auth__WEBPACK_IMPORTED_MODULE_1__.signOut)(_firebase_js__WEBPACK_IMPORTED_MODULE_0__.auth);\n  window.location.href = \"/login.html\";\n});\n\n\n//# sourceURL=webpack://mynorth/./src/dashboard/dashboard.js?\n}");
-
-/***/ },
-
-/***/ "./src/dashboard/plan.js"
-/*!*******************************!*\
-  !*** ./src/dashboard/plan.js ***!
-  \*******************************/
-(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
-
-eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   loadPlanTab: () => (/* binding */ loadPlanTab)\n/* harmony export */ });\n/* harmony import */ var _firebase_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../firebase.js */ \"./src/firebase.js\");\n/* harmony import */ var firebase_firestore__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! firebase/firestore */ \"./node_modules/firebase/firestore/dist/esm/index.esm.js\");\n\n\n\nasync function loadPlanTab() {\n\n  const container = document.getElementById(\"plans-container\");\n\n  container.innerHTML = `\n    <div class=\"text-muted\">Loading plans...</div>\n  `;\n\n  const user = _firebase_js__WEBPACK_IMPORTED_MODULE_0__.auth.currentUser;\n\n  if (!user) {\n    container.innerHTML = \"Not logged in.\";\n    return;\n  }\n\n  try {\n\n    const querySnapshot = await (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_1__.getDocs)(\n      (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_1__.collection)(_firebase_js__WEBPACK_IMPORTED_MODULE_0__.db, \"users\", user.uid, \"plans\")\n    );\n\n    if (querySnapshot.empty) {\n      container.innerHTML = `\n        <div class=\"text-center text-muted mt-4\">\n          <p>No plans yet.</p>\n        </div>\n      `;\n      return;\n    }\n\n    container.innerHTML = \"\";\n\n    querySnapshot.forEach((docSnap) => {\n      const data = docSnap.data();\n\n      const card = `\n        <div class=\"col-md-6 col-lg-4\">\n          <div class=\"card shadow-sm h-100\">\n            <div class=\"card-body\">\n              <h6 class=\"card-title\">${data.goal}</h6>\n              <p class=\"text-muted small\">\n                Duration: ${data.durationMonths} months\n              </p>\n\n              <div class=\"progress mb-2\" style=\"height: 8px;\">\n                <div \n                  class=\"progress-bar\" \n                  role=\"progressbar\"\n                  style=\"width: ${data.progress || 0}%;\">\n                </div>\n              </div>\n\n              <small>${data.progress || 0}% completed</small>\n            </div>\n          </div>\n        </div>\n      `;\n\n      container.innerHTML += card;\n    });\n\n  } catch (error) {\n    console.error(error);\n    container.innerHTML = \"Error loading plans.\";\n  }\n}\n\n\n//# sourceURL=webpack://mynorth/./src/dashboard/plan.js?\n}");
-
-/***/ },
-
 /***/ "./src/firebase.js"
 /*!*************************!*\
   !*** ./src/firebase.js ***!
@@ -197,6 +177,16 @@ eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpa
 (__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
 
 eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   auth: () => (/* binding */ auth),\n/* harmony export */   db: () => (/* binding */ db)\n/* harmony export */ });\n/* harmony import */ var firebase_app__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! firebase/app */ \"./node_modules/firebase/app/dist/esm/index.esm.js\");\n/* harmony import */ var firebase_auth__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! firebase/auth */ \"./node_modules/firebase/auth/dist/esm/index.esm.js\");\n/* harmony import */ var firebase_firestore__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! firebase/firestore */ \"./node_modules/firebase/firestore/dist/esm/index.esm.js\");\n\n\n\n\nconst firebaseConfig = {\n  apiKey: \"AIzaSyBEZsmUytUocbZY6qEvxDaApExaOdb3RD8\",\n  authDomain: \"mynorthhub.firebaseapp.com\",\n  projectId: \"mynorthhub\",\n  storageBucket: \"mynorthhub.firebasestorage.app\",\n  messagingSenderId: \"860390455759\",\n  appId: \"1:860390455759:web:83284f8719e03090b63aba\"\n};\n\nconsole.log(\"Firebase app initialized\");\n\nconst app = (0,firebase_app__WEBPACK_IMPORTED_MODULE_0__.initializeApp)(firebaseConfig);\n\nconst auth = (0,firebase_auth__WEBPACK_IMPORTED_MODULE_1__.getAuth)(app);\nconst db = (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_2__.getFirestore)(app);\n\n\n\n\n//# sourceURL=webpack://mynorth/./src/firebase.js?\n}");
+
+/***/ },
+
+/***/ "./src/newPlan.js"
+/*!************************!*\
+  !*** ./src/newPlan.js ***!
+  \************************/
+(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var firebase_auth__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! firebase/auth */ \"./node_modules/firebase/auth/dist/esm/index.esm.js\");\n/* harmony import */ var firebase_firestore__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! firebase/firestore */ \"./node_modules/firebase/firestore/dist/esm/index.esm.js\");\n/* harmony import */ var _firebase_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./firebase.js */ \"./src/firebase.js\");\n\n\n\n\nconst form = document.getElementById(\"new-plan-form\");\n\nform.addEventListener(\"submit\", async (e) => {\n  e.preventDefault();\n\n  const user = _firebase_js__WEBPACK_IMPORTED_MODULE_2__.auth.currentUser;\n\n  if (!user) {\n    alert(\"Not logged in.\");\n    window.location.href = \"/login.html\";\n    return;\n  }\n\n  const goal = document.getElementById(\"goal\").value;\n  const duration = parseInt(document.getElementById(\"duration\").value);\n  const level = document.getElementById(\"level\").value;\n\n  try {\n    await (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_1__.setDoc)((0,firebase_firestore__WEBPACK_IMPORTED_MODULE_1__.doc)(_firebase_js__WEBPACK_IMPORTED_MODULE_2__.db, \"users\", user.uid, \"plans\", crypto.randomUUID()), {\n      goal: goal,\n      durationMonths: duration,\n      level: level,\n      createdAt: new Date(),\n      progress: 0\n    });\n\n    alert(\"Plan created successfully!\");\n    window.location.href = \"/dashboard.html\";\n\n  } catch (error) {\n    console.error(error);\n    alert(\"Something went wrong.\");\n  }\n});\n\n\n//# sourceURL=webpack://mynorth/./src/newPlan.js?\n}");
 
 /***/ }
 
@@ -278,7 +268,7 @@ eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpa
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module can't be inlined because the eval devtool is used.
-/******/ 	var __webpack_exports__ = __webpack_require__("./src/dashboard/dashboard.js");
+/******/ 	var __webpack_exports__ = __webpack_require__("./src/newPlan.js");
 /******/ 	
 /******/ })()
 ;
