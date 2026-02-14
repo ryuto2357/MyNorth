@@ -94,68 +94,71 @@ function setupSendButton() {
 
   async function sendMessage() {
 
-    if (isSending) return;
-    if (!currentPlanId) return alert("Select a plan first.");
+  if (isSending) return;
+  if (!currentPlanId) return alert("Select a plan first.");
 
-    const text = input.value.trim();
-    if (!text) return;
+  const text = input.value.trim();
+  if (!text) return;
 
-    input.value = "";
-    isSending = true;
-    btn.disabled = true;
+  input.value = "";
+  isSending = true;
+  btn.disabled = true;
 
-    const user = auth.currentUser;
+  const user = auth.currentUser;
 
-    try {
+  try {
 
-      // 1️⃣ Save user message
-      await addDoc(
-        collection(db, "users", user.uid, "plans", currentPlanId, "chats"),
-        {
-          role: "user",
-          content: text,
-          createdAt: new Date()
-        }
-      );
+    // 1️⃣ Save user message
+    await addDoc(
+      collection(db, "users", user.uid, "plans", currentPlanId, "chats"),
+      {
+        role: "user",
+        content: text,
+        createdAt: new Date()
+      }
+    );
 
-      renderMessage({ role: "user", content: text });
+    renderMessage({ role: "user", content: text });
 
-      // 2️⃣ Get Plan Context
-      const planDoc = await getDoc(
-        doc(db, "users", user.uid, "plans", currentPlanId)
-      );
+    // 2️⃣ Show temporary thinking bubble
+    const thinkingBubble = renderThinkingBubble();
 
-      const planData = planDoc.data();
+    // 3️⃣ Get Plan Context
+    const planDoc = await getDoc(
+      doc(db, "users", user.uid, "plans", currentPlanId)
+    );
 
-      // 3️⃣ Get last 10 messages for context
-      const history = await getRecentMessages(user.uid, currentPlanId);
+    const planData = planDoc.data();
 
-      // 4️⃣ Call backend
-      const aiReply = await callBackend(text, history, planData);
+    // 4️⃣ Get last 10 messages
+    const history = await getRecentMessages(user.uid, currentPlanId);
 
-      // 5️⃣ Save assistant message
-      await addDoc(
-        collection(db, "users", user.uid, "plans", currentPlanId, "chats"),
-        {
-          role: "assistant",
-          content: aiReply,
-          createdAt: new Date()
-        }
-      );
+    // 5️⃣ Call backend
+    const aiReply = await callBackend(text, history, planData);
 
-      renderMessage({ role: "assistant", content: aiReply });
+    // 6️⃣ Remove thinking bubble
+    thinkingBubble.remove();
 
-    } catch (error) {
-      console.error(error);
-      renderMessage({
+    // 7️⃣ Save assistant message
+    await addDoc(
+      collection(db, "users", user.uid, "plans", currentPlanId, "chats"),
+      {
         role: "assistant",
-        content: "Sorry, something went wrong."
-      });
-    }
+        content: aiReply,
+        createdAt: new Date()
+      }
+    );
 
-    isSending = false;
-    btn.disabled = false;
+    renderMessage({ role: "assistant", content: aiReply });
+
+  } catch (error) {
+    console.error(error);
   }
+
+  isSending = false;
+  btn.disabled = false;
+}
+
 
   btn.addEventListener("click", sendMessage);
 
@@ -251,3 +254,24 @@ function renderMessage(message) {
   container.scrollTop = container.scrollHeight;
 }
 
+function renderThinkingBubble() {
+
+  const container = document.getElementById("chat-messages");
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "mb-2 d-flex justify-content-start";
+
+  const bubble = document.createElement("div");
+  bubble.className = "px-3 py-2 rounded-3 bg-white border text-muted";
+  bubble.style.maxWidth = "75%";
+  bubble.style.fontStyle = "italic";
+
+  bubble.textContent = "Morgan is thinking...";
+
+  wrapper.appendChild(bubble);
+  container.appendChild(wrapper);
+
+  container.scrollTop = container.scrollHeight;
+
+  return wrapper; // IMPORTANT: return element so we can remove it later
+}
