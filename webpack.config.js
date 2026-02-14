@@ -9,9 +9,11 @@ export default {
     login: "./src/login.js",
     index: "./src/index.js",
     dashboard: "./src/dashboard.js",
+    intro: "./src/intro.js",
   },
   output: {
     filename: "[name].bundle.js",
     path: path.resolve(__dirname, "public", "js"),
+    clean: true,
   },
 };

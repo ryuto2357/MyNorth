@@ -1,21 +1,20 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBEZsmUytUocbZY6qEvxDaApExaOdb3RD8",
-  authDomain: "mynorthhub.firebaseapp.com",
-  projectId: "mynorthhub",
-  storageBucket: "mynorthhub.firebasestorage.app",
-  messagingSenderId: "860390455759",
-  appId: "1:860390455759:web:83284f8719e03090b63aba"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.replace("index.html");
+    return;
+  }
+
+  // 🔥 Check Firestore intro
+  const userRef = doc(db, "users", user.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    // user never completed intro
+    window.location.replace("intro.html");
     return;
   }
 
@@ -32,10 +31,4 @@ onAuthStateChanged(auth, (user) => {
     user.providerData[0]?.providerId || "-";
   document.getElementById("userVerified").textContent =
     user.emailVerified ? "Yes" : "No";
-});
-
-// Logout
-document.getElementById("logoutBtn").addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.replace("index.html");
 });

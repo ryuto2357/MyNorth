@@ -180,13 +180,13 @@ eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpa
 
 /***/ },
 
-/***/ "./src/index.js"
+/***/ "./src/intro.js"
 /*!**********************!*\
-  !*** ./src/index.js ***!
+  !*** ./src/intro.js ***!
   \**********************/
 (__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
 
-eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var _firebase_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./firebase.js */ \"./src/firebase.js\");\n/* harmony import */ var firebase_auth__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! firebase/auth */ \"./node_modules/firebase/auth/dist/esm/index.esm.js\");\n\n\n\n(0,firebase_auth__WEBPACK_IMPORTED_MODULE_1__.onAuthStateChanged)(_firebase_js__WEBPACK_IMPORTED_MODULE_0__.auth, (user) => {\n  if (user) {\n    // User is signed in, see docs for a list of available properties\n    // https://firebase.google.com/docs/reference/js/auth.user\n    const uid = user.uid;\n    console.log(\"User ID:\", uid);\n    console.log(\"User Email:\", user.email);\n    console.log(\"User Name:\", user.displayName);\n    console.log(\"User Photo URL:\", user.photoURL);\n    console.log(\"User Email Verified:\", user.emailVerified);\n    console.log(\"User Phone Number:\", user.phoneNumber);\n    // ...\n  } else {\n    console.log(\"No user is signed in.\");\n    // User is signed out\n    // ...\n  }\n});\n\n(0,firebase_auth__WEBPACK_IMPORTED_MODULE_1__.onAuthStateChanged)(_firebase_js__WEBPACK_IMPORTED_MODULE_0__.auth, (user) => {\n  if (user) {\n    window.location.replace(\"dashboard.html\");\n  }\n});\n\n\n//# sourceURL=webpack://mynorth/./src/index.js?\n}");
+eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var _firebase_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./firebase.js */ \"./src/firebase.js\");\n/* harmony import */ var firebase_auth__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! firebase/auth */ \"./node_modules/firebase/auth/dist/esm/index.esm.js\");\n/* harmony import */ var firebase_firestore__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! firebase/firestore */ \"./node_modules/firebase/firestore/dist/esm/index.esm.js\");\n\n\n\n\n\nconst form = document.getElementById(\"introForm\");\n\n(0,firebase_auth__WEBPACK_IMPORTED_MODULE_1__.onAuthStateChanged)(_firebase_js__WEBPACK_IMPORTED_MODULE_0__.auth, (user) => {\n  if (!user) {\n    window.location.replace(\"index.html\");\n  }\n});\n\nform.addEventListener(\"submit\", async (e) => {\n  e.preventDefault();\n\n  const user = _firebase_js__WEBPACK_IMPORTED_MODULE_0__.auth.currentUser;\n\n  if (!user) {\n    alert(\"You must be logged in.\");\n    return;\n  }\n\n  const introData = {\n    name: form.name.value,\n    gender: form.gender.value,\n    age: Number(form.age.value),\n    country: form.country.value,\n    profession: form.profession.value,\n    industry: form.industry.value,\n\n    wakeUpTime: form.wakeUpTime.value,\n    sleepTime: form.sleepTime.value,\n    workHoursPerDay: Number(form.workHours.value),\n    scheduleType: form.scheduleType.value,\n\n    freeHoursDaily: Number(form.freeHours.value),\n    busiestDay: form.busiestDay.value,\n    mostFreeDays: form.mostFreeDays.value,\n\n    productivityTime: form.productivityTime.value,\n    exerciseRegularly: form.exercise.value,\n    burnoutFrequency: form.burnout.value,\n\n    createdAt: new Date()\n  };\n\n  try {\n    await (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_2__.setDoc)((0,firebase_firestore__WEBPACK_IMPORTED_MODULE_2__.doc)(_firebase_js__WEBPACK_IMPORTED_MODULE_0__.db, \"users\", user.uid), introData);\n    window.location.replace(\"dashboard.html\");\n  } catch (error) {\n    console.error(\"Error saving data:\", error);\n    alert(\"Something went wrong.\");\n  }\n});\n\n\n//# sourceURL=webpack://mynorth/./src/intro.js?\n}");
 
 /***/ }
 
@@ -268,7 +268,7 @@ eval("{__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var _fi
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module can't be inlined because the eval devtool is used.
-/******/ 	var __webpack_exports__ = __webpack_require__("./src/index.js");
+/******/ 	var __webpack_exports__ = __webpack_require__("./src/intro.js");
 /******/ 	
 /******/ })()
 ;

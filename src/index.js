@@ -1,18 +1,6 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase.js";
+import { onAuthStateChanged } from "firebase/auth";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBEZsmUytUocbZY6qEvxDaApExaOdb3RD8",
-  authDomain: "mynorthhub.firebaseapp.com",
-  projectId: "mynorthhub",
-  storageBucket: "mynorthhub.firebasestorage.app",
-  messagingSenderId: "860390455759",
-  appId: "1:860390455759:web:83284f8719e03090b63aba"
-};
-
-const app = initializeApp(firebaseConfig);
-
-const auth = getAuth();
 onAuthStateChanged(auth, (user) => {
   if (user) {
     // User is signed in, see docs for a list of available properties
@@ -29,5 +17,11 @@ onAuthStateChanged(auth, (user) => {
     console.log("No user is signed in.");
     // User is signed out
     // ...
+  }
+});
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    window.location.replace("dashboard.html");
   }
 });
