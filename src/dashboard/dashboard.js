@@ -86,3 +86,9 @@ logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "/login.html";
 });
+
+const editProfileBtn = document.getElementById("edit-profile-btn");
+
+editProfileBtn.addEventListener("click", () => {
+  window.location.href = "/intro.html?edit=true";
+});

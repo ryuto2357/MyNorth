@@ -37,27 +37,36 @@ export async function loadPlanTab() {
       const data = docSnap.data();
 
       const card = `
-        <div class="col-md-6 col-lg-4">
-          <div class="card shadow-sm h-100">
-            <div class="card-body">
-              <h6 class="card-title">${data.goal}</h6>
-              <p class="text-muted small">
-                Duration: ${data.durationMonths} months
-              </p>
+  <div class="col-md-6 col-lg-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="card-title">${data.goal}</h6>
+        <p class="text-muted small">
+          Duration: ${data.durationMonths} months
+        </p>
 
-              <div class="progress mb-2" style="height: 8px;">
-                <div 
-                  class="progress-bar" 
-                  role="progressbar"
-                  style="width: ${data.progress || 0}%;">
-                </div>
-              </div>
-
-              <small>${data.progress || 0}% completed</small>
-            </div>
+        <div class="progress mb-2" style="height: 8px;">
+          <div 
+            class="progress-bar" 
+            role="progressbar"
+            style="width: ${data.progress || 0}%;">
           </div>
         </div>
-      `;
+
+        <small>${data.progress || 0}% completed</small>
+
+        <div class="mt-3">
+          <a href="/newPlan.html?edit=true&id=${docSnap.id}" 
+             class="btn btn-outline-secondary btn-sm">
+            Edit
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+`;
+
 
       container.innerHTML += card;
     });
