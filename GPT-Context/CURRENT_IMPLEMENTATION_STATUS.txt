@@ -1,0 +1,26 @@
+# CURRENT_IMPLEMENTATION_STATUS
+
+## Currently Implemented
+
+* Google Authentication
+* Intro profile storage
+* Plan creation/edit
+* Plan deletion (including chats)
+* Chat system per plan
+* Cloud backend integration
+* Chat history limit (30 messages)
+* Plan dropdown in chat tab
+* Deterministic roadmap generation via Cloud Function
+* OpenAI Structured Outputs (strict JSON schema, gpt-4o-2024-08-06)
+* Tasks subcollection creation at plan initialization
+* Secure OpenAI Secret Manager integration
+* Derived progress calculation from tasks (no stored progress field)
+
+## Not Yet Implemented
+
+* Sequential enforcement (active task locking)
+* Confirmation-based task completion flow
+* Action log system
+* Calendar logic (visual only layer)
+* Plan completion state transition (automatic when all tasks complete)
+* Task deletion (soft delete logic UI layer)

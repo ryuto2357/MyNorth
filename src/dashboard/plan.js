@@ -38,9 +38,34 @@ export async function loadPlanTab() {
 
     container.innerHTML = "";
 
-    querySnapshot.forEach((docSnap) => {
+    for (const docSnap of querySnapshot.docs) {
 
       const data = docSnap.data();
+      const planId = docSnap.id;
+
+      // 🔹 Load tasks for this plan
+      const tasksSnapshot = await getDocs(
+        collection(db, "users", user.uid, "plans", planId, "tasks")
+      );
+
+      let totalActive = 0;
+      let completed = 0;
+
+      tasksSnapshot.forEach(taskDoc => {
+        const task = taskDoc.data();
+
+        if (task.status !== "deleted") {
+          totalActive++;
+
+          if (task.status === "completed") {
+            completed++;
+          }
+        }
+      });
+
+      const progress =
+        totalActive === 0 ? 0 :
+        Math.round((completed / totalActive) * 100);
 
       const card = `
         <div class="col-md-6 col-lg-4">
@@ -56,22 +81,22 @@ export async function loadPlanTab() {
                 <div 
                   class="progress-bar" 
                   role="progressbar"
-                  style="width: ${data.progress || 0}%;">
+                  style="width: ${progress}%;">
                 </div>
               </div>
 
-              <small>${data.progress || 0}% completed</small>
+              <small>${progress}% completed</small>
 
               <div class="mt-3 d-flex gap-2">
 
-                <a href="/newPlan.html?edit=true&id=${docSnap.id}" 
+                <a href="/newPlan.html?edit=true&id=${planId}" 
                    class="btn btn-outline-secondary btn-sm">
                   Edit
                 </a>
 
                 <button 
                   class="btn btn-outline-danger btn-sm delete-plan"
-                  data-id="${docSnap.id}">
+                  data-id="${planId}">
                   Delete
                 </button>
 
@@ -83,9 +108,8 @@ export async function loadPlanTab() {
       `;
 
       container.innerHTML += card;
-    });
+    }
 
-    // 🔥 AFTER rendering all cards → attach delete listeners
     attachDeleteListeners(user.uid);
 
   } catch (error) {
@@ -93,6 +117,7 @@ export async function loadPlanTab() {
     container.innerHTML = "Error loading plans.";
   }
 }
+
 
 
 // ==========================

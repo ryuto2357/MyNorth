@@ -1,0 +1,20 @@
+/users/{uid}
+
+/users/{uid}/plans/{planId}
+
+/users/{uid}/plans/{planId}/tasks/{taskId}
+
+/users/{uid}/plans/{planId}/chats/{chatId}
+
+/users/{uid}/plans/{planId}/actions/{actionId} (optional)
+
+Chats:
+- content
+- role
+- createdAt
+
+Actions:
+- type
+- payload
+- createdAt
+- triggeredByChatId

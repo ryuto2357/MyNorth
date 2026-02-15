@@ -1,0 +1,19 @@
+public/
+- index.html
+- login.html
+- intro.html
+- dashboard.html
+- newPlan.html
+- /tabs/plan.html
+- /tabs/chat.html
+- /js/*.bundle.js
+
+src/
+- firebase.js
+- login.js
+- intro.js
+- dashboard.js
+- plan.js
+- chat.js
+- newPlan.js
+webpack.config.js

@@ -1,0 +1,46 @@
+Core Flow:
+
+1. User logs in via Google (Firebase Auth).
+2. If /users/{uid} exists → dashboard.
+   Else → intro.
+3. Intro collects user profile and stores in Firestore.
+4. User creates plan.
+5. AI generates full ordered task roadmap immediately.
+6. Tasks must be completed sequentially.
+7. Progress derived from task completion.
+8. Calendar visual only.
+
+Plan Model:
+/users/{uid}/plans/{planId}
+
+Fields:
+- goal
+- durationMonths (generation guidance only)
+- level
+- status: active | completed
+- createdAt
+- completedAt
+
+Task Model:
+/users/{uid}/plans/{planId}/tasks/{taskId}
+
+Fields:
+- orderIndex
+- title
+- description
+- status: pending | completed | deleted
+- createdAt
+- completedAt
+
+Rules:
+- Only first pending task is active.
+- No skipping.
+- No partial completion.
+- Equal weight.
+- Soft delete only.
+
+Progress Formula:
+progress = completedTasks / totalActiveTasks
+
+Plan completes when:
+completedTasks == totalActiveTasks

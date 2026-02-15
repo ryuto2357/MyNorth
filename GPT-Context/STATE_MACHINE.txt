@@ -1,0 +1,187 @@
+Project: MyNorth
+Version: V1
+Architecture Type: Deterministic State Machine
+
+========================================
+1. GLOBAL SYSTEM STATES
+========================================
+
+User Authentication State:
+- UNAUTHENTICATED
+- AUTHENTICATED
+
+Plan Lifecycle State:
+- ACTIVE
+- COMPLETED
+
+Task State:
+- PENDING
+- COMPLETED
+- DELETED
+
+========================================
+2. PLAN STATE MACHINE
+========================================
+
+INITIAL STATE:
+Plan does not exist.
+
+EVENT: User creates plan
+→ AI generates full ordered task list
+→ Tasks saved with status = PENDING
+→ plan.status = ACTIVE
+→ Transition to ACTIVE
+
+----------------------------------------
+
+STATE: ACTIVE
+
+Condition:
+At least one task exists with status = PENDING
+
+Allowed Events:
+
+1. TASK_COMPLETION_CONFIRMED
+   Condition:
+     - Current active task exists
+     - User confirms AI proposal
+
+   Action:
+     - Set task.status = COMPLETED
+     - Set task.completedAt = timestamp
+     - Log action
+     - Recalculate progress
+
+   If completedTasks == totalActiveTasks:
+     → Transition to COMPLETED
+   Else:
+     → Remain ACTIVE
+
+2. TASK_DELETED
+   Condition:
+     - Task status != COMPLETED
+   Action:
+     - Set task.status = DELETED
+     - Recalculate progress
+
+   If completedTasks == totalActiveTasks:
+     → Transition to COMPLETED
+
+3. USER_INACTIVITY
+   Action:
+     - None
+   State remains ACTIVE
+
+----------------------------------------
+
+STATE: COMPLETED
+
+Entry Condition:
+completedTasks == totalActiveTasks
+
+Entry Actions:
+- plan.status = COMPLETED
+- plan.completedAt = timestamp
+
+Allowed Events:
+- None that modify tasks
+- Plan becomes read-only
+
+To continue:
+User must create new plan.
+
+========================================
+3. TASK STATE MACHINE
+========================================
+
+INITIAL STATE:
+PENDING
+
+----------------------------------------
+
+STATE: PENDING
+
+If orderIndex == lowest pending:
+→ Task is ACTIVE_TASK
+
+Else:
+→ Task is LOCKED (not completable)
+
+Event: COMPLETION_CONFIRMED
+Condition:
+- Task is ACTIVE_TASK
+- User confirmed
+
+Action:
+- status = COMPLETED
+- completedAt = timestamp
+
+----------------------------------------
+
+STATE: COMPLETED
+
+No further transitions.
+
+----------------------------------------
+
+STATE: DELETED
+
+Excluded from progress calculation.
+No further transitions.
+
+========================================
+4. PROGRESS DERIVATION RULE
+========================================
+
+progress =
+  count(tasks where status == COMPLETED)
+  /
+  count(tasks where status != DELETED)
+
+Progress is NEVER stored as authoritative value.
+It is always derived.
+
+========================================
+5. AI INTERACTION STATE FLOW
+========================================
+
+Chat Message Received
+↓
+AI checks ONLY current active task
+↓
+If uncertain:
+  → ASK_CLARIFICATION
+  → No state mutation
+
+If confident:
+  → PROPOSE_COMPLETION
+  → Await user confirmation
+
+If user confirms:
+  → Emit TASK_COMPLETION_CONFIRMED event
+
+If user rejects:
+  → No mutation
+
+AI cannot:
+- Directly mutate DB
+- Skip tasks
+- Regenerate roadmap
+- Adjust duration
+- Penalize inactivity
+
+========================================
+6. INVALID TRANSITIONS (BLOCKED)
+========================================
+
+- Completing a task out of order
+- Completing already completed task
+- Modifying tasks after plan COMPLETED
+- AI auto-completing without confirmation
+- Auto-adjusting duration
+
+All invalid transitions must be rejected by system layer.
+
+========================================
+END OF STATE MACHINE
+========================================

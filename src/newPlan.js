@@ -1,15 +1,14 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 const form = document.getElementById("new-plan-form");
 
-// detect edit mode
 const urlParams = new URLSearchParams(window.location.search);
 const isEditMode = urlParams.get("edit") === "true";
 const planId = urlParams.get("id");
 
-// Wait for Firebase to finish loading auth
 onAuthStateChanged(auth, async (user) => {
 
   if (!user) {
@@ -17,7 +16,6 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // If editing → load plan data
   if (isEditMode && planId) {
 
     const docRef = doc(db, "users", user.uid, "plans", planId);
@@ -30,13 +28,11 @@ onAuthStateChanged(auth, async (user) => {
       document.getElementById("duration").value = data.durationMonths;
       document.getElementById("level").value = data.level;
 
-      // change UI text
       document.querySelector("h3").textContent = "Edit Plan";
       form.querySelector("button").textContent = "Save Changes";
     }
   }
 
-  // Submit must be inside here (important!)
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -62,16 +58,28 @@ onAuthStateChanged(auth, async (user) => {
 
       } else {
 
-        await setDoc(
-          doc(db, "users", user.uid, "plans", crypto.randomUUID()),
-          {
-            goal,
-            durationMonths: duration,
-            level,
-            createdAt: new Date(),
-            progress: 0
-          }
-        );
+        const newPlanId = crypto.randomUUID();
+
+        const planRef = doc(db, "users", user.uid, "plans", newPlanId);
+
+        await setDoc(planRef, {
+          goal,
+          durationMonths: duration,
+          level,
+          status: "active",
+          createdAt: new Date(),
+          completedAt: null
+        });
+
+        const functions = getFunctions();
+        const generateRoadmap = httpsCallable(functions, "generateRoadmap");
+
+        await generateRoadmap({
+          planId: newPlanId,
+          goal,
+          durationMonths: duration,
+          level
+        });
 
         alert("Plan created!");
       }

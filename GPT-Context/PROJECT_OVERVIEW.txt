@@ -1,0 +1,658 @@
+🔹 Project Identity
+
+MyNorth is an AI-powered structured planning web app.
+
+V1 is designed as:
+
+A deterministic AI-assisted roadmap execution engine.
+
+It is NOT:
+
+A dynamic adaptive life coach
+
+A habit optimizer
+
+A time enforcement engine
+
+A behavioral AI
+
+V1 prioritizes:
+
+Stability
+
+Debuggability
+
+Deterministic state transitions
+
+Simplicity
+
+🔹 Core Flow
+
+User signs up (Google login via Firebase Auth).
+
+If new user → redirected to intro.
+
+Intro collects user profile data and stores in Firestore.
+
+User goes to dashboard.
+
+User creates a plan.
+
+AI generates full ordered roadmap immediately.
+
+Tasks must be completed sequentially.
+
+Progress is derived from completed tasks.
+
+Calendar is visualization only.
+
+🔹 Plan Structure (V1)
+
+Plan fields:
+
+goal
+
+durationMonths (AI generation guidance only)
+
+level
+
+status: "active" | "completed"
+
+createdAt
+
+completedAt
+
+Duration does NOT enforce pacing.
+It only influences how many tasks AI generates.
+
+Plan ends when all tasks are completed.
+
+🔹 Task System (Core of V1)
+
+Each plan contains:
+
+/users/{uid}/plans/{planId}/tasks/{taskId}
+
+Each task:
+
+orderIndex (sequential integer)
+
+title
+
+description (optional)
+
+status: "pending" | "completed" | "deleted"
+
+createdAt
+
+completedAt
+
+Rules:
+
+Tasks must be completed in order.
+
+Only the first pending task is active.
+
+No skipping.
+
+No partial completion.
+
+Equal weight.
+
+Soft delete only (status = deleted).
+
+Deleting reduces total active task count.
+
+Progress recalculates automatically.
+
+🔹 Progress Calculation (Derived Only)
+
+Progress is NEVER stored as manual percentage.
+
+progress = completedTasks / totalActiveTasks
+
+
+Where:
+
+completedTasks = tasks with status == completed
+
+totalActiveTasks = tasks with status != deleted
+
+If completedTasks == totalActiveTasks:
+
+plan.status = completed
+
+plan.completedAt = timestamp
+
+Plan may end earlier than durationMonths.
+
+No auto duration adjustment.
+
+🔹 Task Completion Flow
+
+User chats.
+
+AI checks only the current active task.
+
+If confident:
+AI proposes completion.
+
+User confirms.
+
+System:
+
+Marks task completed
+
+Sets completedAt
+
+Logs action
+
+Recalculates progress
+
+Unlocks next task
+
+Execution is immediate.
+No batching.
+No scheduler.
+
+🔹 AI Role (Morgan)
+
+Morgan is responsible for:
+
+Generating full roadmap during plan creation.
+
+Detecting completion of current task from chat.
+
+Asking clarification if uncertain.
+
+Proposing structured actions.
+
+Requiring confirmation before state mutation.
+
+Morgan is NOT allowed to:
+
+Modify Firestore directly.
+
+Change duration.
+
+Regenerate tasks.
+
+Skip tasks.
+
+Adjust difficulty.
+
+Penalize inactivity.
+
+Auto-update progress without confirmation.
+
+AI proposes.
+System executes.
+
+🔹 Calendar Tab
+
+Calendar is visual only.
+
+It:
+
+Displays completedAt timestamps.
+
+Shows pacing.
+
+Shows inactivity visually.
+
+Does not enforce deadlines.
+
+Does not trigger penalties.
+
+If user disappears:
+System does nothing.
+
+🔹 Chat System
+
+Each plan has separate chat context:
+
+/users/{uid}/plans/{planId}/chats/{chatId}
+
+Chat stores:
+
+content
+
+role
+
+createdAt
+
+When chatting, AI receives:
+
+User profile
+
+Plan data
+
+Full task list
+
+Chat history
+
+Chat is used for:
+
+Progress detection
+
+Clarification
+
+Motivation
+
+Confirmation flow
+
+🔹 Action Log (Optional but Recommended)
+
+For traceability:
+
+/users/{uid}/plans/{planId}/actions/{actionId}
+
+Each action:
+
+type
+
+payload
+
+createdAt
+
+triggeredByChatId
+
+Used for:
+
+Debugging
+
+Future undo system
+
+Audit trail
+
+🔹 Authentication Logic
+
+Firebase Authentication (Google only).
+
+On login:
+
+If /users/{uid} exists → go to dashboard
+
+Else → go to intro
+
+Intro saves user profile fields:
+
+age, burnoutFrequency, busiestDay, country,
+exerciseRegularly, freeHoursDaily, gender,
+industry, mostFreeDays, name, productivityTime,
+profession, scheduleType, sleepTime, wakeUpTime,
+workHoursPerDay, createdAt, updatedAt
+
+🔹 Explicit Non-Goals for V1
+
+No dynamic difficulty adjustment
+
+No adaptive pacing
+
+No time enforcement
+
+No AI autonomy
+
+No regeneration of roadmap
+
+No partial completion
+
+No task weighting
+
+No inactivity penalty
+
+No automatic duration modification
+
+V1 is strict and sequential by design.
+
+🔹 System Identity Summary
+
+MyNorth V1 is:
+
+A deterministic AI-assisted roadmap execution engine
+with sequential task progression and derived progress.
+
+It is intentionally strict to maximize stability,
+clarity, and debuggability.
+
+
+🔹 Project Identity
+
+MyNorth is an AI-powered structured planning web app.
+
+V1 is designed as:
+
+A deterministic AI-assisted roadmap execution engine.
+
+It is NOT:
+
+A dynamic adaptive life coach
+
+A habit optimizer
+
+A time enforcement engine
+
+A behavioral AI
+
+V1 prioritizes:
+
+Stability
+
+Debuggability
+
+Deterministic state transitions
+
+Simplicity
+
+🔹 Core Flow
+
+User signs up (Google login via Firebase Auth).
+
+If new user → redirected to intro.
+
+Intro collects user profile data and stores in Firestore.
+
+User goes to dashboard.
+
+User creates a plan.
+
+AI generates full ordered roadmap immediately.
+
+Tasks must be completed sequentially.
+
+Progress is derived from completed tasks.
+
+Calendar is visualization only.
+
+🔹 Plan Structure (V1)
+
+Plan fields:
+
+goal
+
+durationMonths (AI generation guidance only)
+
+level
+
+status: "active" | "completed"
+
+createdAt
+
+completedAt
+
+Duration does NOT enforce pacing.
+It only influences how many tasks AI generates.
+
+Plan ends when all tasks are completed.
+
+🔹 Task System (Core of V1)
+
+Each plan contains:
+
+/users/{uid}/plans/{planId}/tasks/{taskId}
+
+Each task:
+
+orderIndex (sequential integer)
+
+title
+
+description (optional)
+
+status: "pending" | "completed" | "deleted"
+
+createdAt
+
+completedAt
+
+Rules:
+
+Tasks must be completed in order.
+
+Only the first pending task is active.
+
+No skipping.
+
+No partial completion.
+
+Equal weight.
+
+Soft delete only (status = deleted).
+
+Deleting reduces total active task count.
+
+Progress recalculates automatically.
+
+🔹 Progress Calculation (Derived Only)
+
+Progress is NEVER stored as manual percentage.
+
+progress = completedTasks / totalActiveTasks
+
+
+Where:
+
+completedTasks = tasks with status == completed
+
+totalActiveTasks = tasks with status != deleted
+
+If completedTasks == totalActiveTasks:
+
+plan.status = completed
+
+plan.completedAt = timestamp
+
+Plan may end earlier than durationMonths.
+
+No auto duration adjustment.
+
+🔹 Task Completion Flow
+
+User chats.
+
+AI checks only the current active task.
+
+If confident:
+AI proposes completion.
+
+User confirms.
+
+System:
+
+Marks task completed
+
+Sets completedAt
+
+Logs action
+
+Recalculates progress
+
+Unlocks next task
+
+Execution is immediate.
+No batching.
+No scheduler.
+
+🔹 AI Role (Morgan)
+
+Morgan is responsible for:
+
+Generating full roadmap during plan creation.
+
+Detecting completion of current task from chat.
+
+Asking clarification if uncertain.
+
+Proposing structured actions.
+
+Requiring confirmation before state mutation.
+
+Morgan is NOT allowed to:
+
+Modify Firestore directly.
+
+Change duration.
+
+Regenerate tasks.
+
+Skip tasks.
+
+Adjust difficulty.
+
+Penalize inactivity.
+
+Auto-update progress without confirmation.
+
+AI proposes.
+System executes.
+
+🔹 Calendar Tab
+
+Calendar is visual only.
+
+It:
+
+Displays completedAt timestamps.
+
+Shows pacing.
+
+Shows inactivity visually.
+
+Does not enforce deadlines.
+
+Does not trigger penalties.
+
+If user disappears:
+System does nothing.
+
+🔹 Chat System
+
+Each plan has separate chat context:
+
+/users/{uid}/plans/{planId}/chats/{chatId}
+
+Chat stores:
+
+content
+
+role
+
+createdAt
+
+When chatting, AI receives:
+
+User profile
+
+Plan data
+
+Full task list
+
+Chat history
+
+Chat is used for:
+
+Progress detection
+
+Clarification
+
+Motivation
+
+Confirmation flow
+
+🔹 Firestore Structure (V1)
+
+/users/{uid}
+
+/users/{uid}/plans/{planId}
+
+/users/{uid}/plans/{planId}/tasks/{taskId}
+
+/users/{uid}/plans/{planId}/chats/{chatId}
+
+/users/{uid}/plans/{planId}/actions/{actionId} (optional)
+
+🔹 Current Frontend File Structure
+
+public/
+│
+├── index.html (Landing page)
+├── login.html (Google login via Firebase Auth)
+├── intro.html (User onboarding form)
+├── dashboard.html (Main app container)
+├── newPlan.html (Create plan form)
+│
+├── js/
+│ ├── dashboard.bundle.js
+│ ├── index.bundle.js
+│ ├── intro.bundle.js
+│ ├── login.bundle.js
+│
+└── tabs/
+├── plan.html (Manage plans, list tasks)
+└── chat.html (Chat with Morgan per plan)
+
+🔹 Source Structure (Webpack-based)
+
+src/
+│
+├── dashboard.js
+├── firebase.js
+├── index.js
+├── intro.js
+├── login.js
+│
+webpack.config.js
+
+Webpack bundles src files into /public/js/*.bundle.js.
+
+🔹 Authentication Logic
+
+Firebase Authentication (Google only).
+
+On login:
+
+If /users/{uid} exists → go to dashboard
+
+Else → go to intro
+
+Intro saves user profile fields:
+
+age, burnoutFrequency, busiestDay, country,
+exerciseRegularly, freeHoursDaily, gender,
+industry, mostFreeDays, name, productivityTime,
+profession, scheduleType, sleepTime, wakeUpTime,
+workHoursPerDay, createdAt, updatedAt
+
+🔹 Explicit Non-Goals for V1
+
+No dynamic difficulty adjustment
+
+No adaptive pacing
+
+No time enforcement
+
+No AI autonomy
+
+No regeneration of roadmap
+
+No partial completion
+
+No task weighting
+
+No inactivity penalty
+
+No automatic duration modification
+
+V1 is strict and sequential by design.
+
+🔹 System Identity Summary
+
+MyNorth V1 is:
+
+A deterministic AI-assisted roadmap execution engine
+with sequential task progression and derived progress.
+
+It is intentionally strict to maximize stability,
+clarity, and debuggability.
+
+
