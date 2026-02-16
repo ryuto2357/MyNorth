@@ -20,6 +20,8 @@ let isSending = false;
 
 const chatMorgan = httpsCallable(functions, "chatMorgan");
 const completeTaskFn = httpsCallable(functions, "completeTask");
+const createCalendarEventFn = httpsCallable(functions, "createCalendarEvent");
+
 
 // ==========================
 // Entry
@@ -240,8 +242,16 @@ async function handleAIResponse(response, uid) {
 
   if (response.type === "PROPOSE_TASK_COMPLETION") {
     renderCompletionProposal(response, uid);
+    return;
+  }
+
+  // 🔵 NEW: Calendar Proposal
+  if (response.type === "PROPOSE_CREATE_CALENDAR_EVENT") {
+    renderCalendarProposal(response, uid);
+    return;
   }
 }
+
 
 // ==========================
 // Render Completion Proposal
@@ -305,6 +315,73 @@ function renderCompletionProposal(response, uid) {
       bubble.innerHTML = "Okay, let's continue.";
     });
 }
+
+// ==========================
+// Render Calendar Proposal
+// ==========================
+function renderCalendarProposal(response, uid) {
+
+  const container = document.getElementById("chat-messages");
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "mb-2 d-flex justify-content-start";
+
+  const bubble = document.createElement("div");
+  bubble.className = "px-3 py-2 rounded-3 bg-white border";
+  bubble.style.maxWidth = "75%";
+
+  bubble.innerHTML = `
+    <div>${response.message}</div>
+    <div class="mt-2 d-flex gap-2">
+      <button class="btn btn-sm btn-success confirm-btn">
+        Confirm
+      </button>
+      <button class="btn btn-sm btn-secondary cancel-btn">
+        Cancel
+      </button>
+    </div>
+  `;
+
+  wrapper.appendChild(bubble);
+  container.appendChild(wrapper);
+
+  container.scrollTop = container.scrollHeight;
+
+  bubble.querySelector(".confirm-btn")
+    .addEventListener("click", async () => {
+
+      bubble.innerHTML = "Creating calendar event...";
+
+      try {
+
+        const result = await createCalendarEventFn({
+          planId: currentPlanId,
+          title: response.payload.title,
+          description: response.payload.description,
+          startISO: response.payload.startISO,
+          endISO: response.payload.endISO,
+          triggeredByChatId: null
+        });
+
+        if (result.data.success) {
+          bubble.innerHTML = "✅ Event added to Google Calendar.";
+        } else {
+          bubble.innerHTML = "Failed to create event.";
+        }
+
+      } catch (err) {
+        console.error(err);
+        bubble.innerHTML = "Google not connected or failed.";
+      }
+
+    });
+
+  bubble.querySelector(".cancel-btn")
+    .addEventListener("click", () => {
+      bubble.innerHTML = "Okay, not added to calendar.";
+    });
+}
+
 
 // ==========================
 // Save Assistant Message

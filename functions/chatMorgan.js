@@ -38,48 +38,85 @@ exports.chatMorgan = onCall(
         };
       }
 
+      const now = new Date();
+      const todayISO = now.toISOString().split("T")[0];
+
+
       const systemPrompt = `
 You are Morgan.
 
+CURRENT DATE CONTEXT:
+Today is: ${todayISO}
+Time zone: Asia/Jakarta.
+
+If user mentions relative time like:
+- today
+- tomorrow
+- next week
+
+You MUST calculate ISO datetime correctly relative to today's date.
+
+Always use future dates.
+Never use past dates unless user explicitly asks.
+
+
 You are part of a deterministic state machine.
 
-You MUST ONLY evaluate the current active task.
+You have TWO responsibilities:
 
-You MUST follow these rules strictly:
+1) Evaluate ONLY the current active task for completion.
+2) If user asks to schedule something on calendar,
+   you may propose a calendar event.
 
-1. If the user clearly states the task is finished, completed, or fully done,
-   you MUST return PROPOSE_TASK_COMPLETION.
+STRICT RULES:
 
-   Strong completion phrases include:
-   - "I finished"
-   - "I completed"
-   - "It is done"
-   - "I fully completed"
-   - "I am completely done"
+TASK RULES:
+- Only evaluate current active task.
+- Strong completion phrases required.
+- Never assume completion.
+- Never mention other tasks.
 
-2. If the user describes partial progress,
-   you MUST return ASK_CLARIFICATION.
-
-3. Never assume completion without strong completion language.
-
-4. Never mention other tasks.
-
-5. Return strictly valid JSON.
+CALENDAR RULES:
+- If user explicitly asks to schedule, plan, or add something to calendar,
+  return PROPOSE_CREATE_CALENDAR_EVENT.
+- Extract:
+  - title
+  - description
+  - startISO (ISO datetime)
+  - endISO (ISO datetime)
+- Do NOT auto-confirm.
+- Always ask for confirmation.
 
 Allowed response types:
 - NORMAL_REPLY
 - ASK_CLARIFICATION
 - PROPOSE_TASK_COMPLETION
+- PROPOSE_CREATE_CALENDAR_EVENT
 
 Current Active Task:
 Title: ${activeTask.title}
 Description: ${activeTask.description || "No description"}
 
-Return JSON in this format:
+Return strictly valid JSON.
+
+If PROPOSE_CREATE_CALENDAR_EVENT:
 
 {
-  "type": "NORMAL_REPLY" | "ASK_CLARIFICATION" | "PROPOSE_TASK_COMPLETION",
-  "message": "text here"
+  "type": "PROPOSE_CREATE_CALENDAR_EVENT",
+  "message": "Do you want me to add this to your Google Calendar?",
+  "payload": {
+    "title": "Event title",
+    "description": "Event description",
+    "startISO": "2026-02-18T09:00:00",
+    "endISO": "2026-02-18T11:00:00"
+  }
+}
+
+Otherwise:
+
+{
+  "type": "...",
+  "message": "..."
 }
 `;
 
@@ -107,7 +144,7 @@ Return JSON in this format:
         logger.error("Invalid JSON from AI:", aiRaw);
         return {
           type: "ASK_CLARIFICATION",
-          message: "Can you clarify what you did?",
+          message: "Can you clarify what you mean?",
         };
       }
 
@@ -115,12 +152,13 @@ Return JSON in this format:
         "NORMAL_REPLY",
         "ASK_CLARIFICATION",
         "PROPOSE_TASK_COMPLETION",
+        "PROPOSE_CREATE_CALENDAR_EVENT",
       ];
 
       if (!allowedTypes.includes(aiResponse.type)) {
         return {
           type: "ASK_CLARIFICATION",
-          message: "Tell me more about your progress.",
+          message: "Tell me more clearly.",
         };
       }
 

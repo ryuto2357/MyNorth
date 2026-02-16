@@ -1,6 +1,8 @@
-import { auth, db } from "../firebase.js";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { auth, db, functions } from "../firebase.js";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+
 import { loadPlanTab } from "./plan.js";
 import { loadChatTab } from "./chat.js";
 import { loadCalendarTab } from "./calendar.js";
@@ -8,6 +10,8 @@ import { loadCalendarTab } from "./calendar.js";
 const tabContent = document.getElementById("tab-content");
 const tabs = document.querySelectorAll("[data-tab]");
 const logoutBtn = document.getElementById("logout-btn");
+const editProfileBtn = document.getElementById("edit-profile-btn");
+const connectGoogleBtn = document.getElementById("connect-google-btn");
 
 
 // ===============================
@@ -39,8 +43,38 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById("user-photo").src =
     profileData.photoURL || user.photoURL || "https://via.placeholder.com/40";
 
+  // 🔹 Check Google integration status
+  const integrationRef = doc(db, "users", user.uid, "integrations", "google");
+  const integrationSnap = await getDoc(integrationRef);
+
+  if (integrationSnap.exists()) {
+    connectGoogleBtn.textContent = "Google Connected";
+    connectGoogleBtn.disabled = true;
+    connectGoogleBtn.classList.remove("btn-outline-success");
+    connectGoogleBtn.classList.add("btn-success");
+  }
+
   // Load default tab
   loadTab("plan");
+});
+
+
+// ===============================
+// GOOGLE CONNECT
+// ===============================
+connectGoogleBtn.addEventListener("click", async () => {
+  try {
+    const startOAuth = httpsCallable(functions, "startGoogleOAuth");
+    const result = await startOAuth();
+    const { authUrl } = result.data;
+
+    // Redirect to Google consent screen
+    window.location.href = authUrl;
+
+  } catch (error) {
+    console.error(error);
+    alert("Failed to start Google connection.");
+  }
 });
 
 
@@ -49,28 +83,20 @@ onAuthStateChanged(auth, async (user) => {
 // ===============================
 async function loadTab(tabName) {
 
-  // remove active
   tabs.forEach(tab => tab.classList.remove("active"));
   document
     .querySelector(`[data-tab="${tabName}"]`)
     .classList.add("active");
 
-  // load html
   const response = await fetch(`/tabs/${tabName}.html`);
   const html = await response.text();
   tabContent.innerHTML = html;
 
-  // initialize logic
-  if (tabName === "plan") {
-    loadPlanTab();
-  }
-
-  // comment others for now so no error
+  if (tabName === "plan") loadPlanTab();
   if (tabName === "chat") loadChatTab();
   if (tabName === "calendar") loadCalendarTab();
 }
 
-// tab click
 tabs.forEach(tab => {
   tab.addEventListener("click", () => {
     const tabName = tab.getAttribute("data-tab");
@@ -86,8 +112,6 @@ logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "/login.html";
 });
-
-const editProfileBtn = document.getElementById("edit-profile-btn");
 
 editProfileBtn.addEventListener("click", () => {
   window.location.href = "/intro.html?edit=true";
