@@ -5,10 +5,8 @@ const {initializeApp} = require("firebase-admin/app");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 
 initializeApp();
-
 const db = getFirestore();
 
-// 🔐 Secure secret
 const openaiKey = defineSecret("OPENAI_API_KEY");
 
 exports.generateRoadmap = onCall(
@@ -25,7 +23,6 @@ exports.generateRoadmap = onCall(
       const {planId, goal, durationMonths, currentStatus} = data;
       const uid = auth.uid;
 
-      // ✅ Strict validation
       if (
         !planId ||
       !goal ||
@@ -35,6 +32,39 @@ exports.generateRoadmap = onCall(
       typeof currentStatus !== "string"
       ) {
         throw new HttpsError("invalid-argument", "Missing or invalid fields.");
+      }
+
+      const planRef = db
+          .collection("users")
+          .doc(uid)
+          .collection("plans")
+          .doc(planId);
+
+      // 🔒 TRANSACTION LOCK
+      await db.runTransaction(async (transaction) => {
+        const planSnap = await transaction.get(planRef);
+
+        if (!planSnap.exists) {
+          throw new HttpsError("not-found", "Plan not found.");
+        }
+
+        const planData = planSnap.data();
+
+        if (planData.status !== "generating") {
+          throw new HttpsError(
+              "failed-precondition",
+              "Plan already processed or invalid state.",
+          );
+        }
+      });
+
+      // 🔹 EXTRA SAFETY: Prevent duplicate tasks
+      const existingTasks = await planRef.collection("tasks").limit(1).get();
+      if (!existingTasks.empty) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Tasks already exist for this plan.",
+        );
       }
 
       const client = new OpenAI({
@@ -94,18 +124,9 @@ Current Status: ${currentStatus}
                       additionalProperties: false,
                       required: ["orderIndex", "title", "description"],
                       properties: {
-                        orderIndex: {
-                          type: "integer",
-                          minimum: 1,
-                        },
-                        title: {
-                          type: "string",
-                          minLength: 5,
-                        },
-                        description: {
-                          type: "string",
-                          minLength: 10,
-                        },
+                        orderIndex: {type: "integer", minimum: 1},
+                        title: {type: "string", minLength: 5},
+                        description: {type: "string", minLength: 10},
                       },
                     },
                   },
@@ -114,35 +135,22 @@ Current Status: ${currentStatus}
             },
           },
         });
-
-        console.log("RAW COMPLETION:", JSON.stringify(completion, null, 2));
       } catch (err) {
         console.error("OpenAI error:", err);
         throw new HttpsError("internal", "AI request failed.");
       }
 
-      // 🔹 Handle incomplete
       if (
         completion.status === "incomplete" &&
-      completion.incomplete_details.reason === "max_output_tokens"
+      completion.incomplete_details?.reason === "max_output_tokens"
       ) {
         throw new HttpsError("internal", "AI response incomplete.");
       }
 
-      const content = completion.output[0].content[0];
+      const content = completion.output?.[0]?.content?.[0];
 
-      if (!content) {
-        throw new HttpsError("internal", "No AI response.");
-      }
-
-      // 🔹 Handle refusal
-      if (content.type === "refusal") {
-        console.error("AI refusal:", content.refusal);
-        throw new HttpsError("internal", "AI refused request.");
-      }
-
-      if (content.type !== "output_text") {
-        throw new HttpsError("internal", "Unexpected AI output type.");
+      if (!content || content.type !== "output_text") {
+        throw new HttpsError("internal", "Invalid AI response.");
       }
 
       let result;
@@ -150,28 +158,20 @@ Current Status: ${currentStatus}
       try {
         result = JSON.parse(content.text);
       } catch (err) {
-        console.error("JSON parse error:", err);
         throw new HttpsError("internal", "Invalid AI JSON.");
       }
 
-      if (!result.tasks || !Array.isArray(result.tasks)) {
+      if (!Array.isArray(result.tasks) || result.tasks.length === 0) {
         throw new HttpsError("internal", "Invalid roadmap structure.");
       }
 
-      // 🔹 Deterministic ordering safeguard
       result.tasks.sort((a, b) => a.orderIndex - b.orderIndex);
 
-      // 🔹 Batch write tasks
+      // 🔹 Batch write
       const batch = db.batch();
 
       result.tasks.forEach((task) => {
-        const taskRef = db
-            .collection("users")
-            .doc(uid)
-            .collection("plans")
-            .doc(planId)
-            .collection("tasks")
-            .doc();
+        const taskRef = planRef.collection("tasks").doc();
 
         batch.set(taskRef, {
           orderIndex: task.orderIndex,
@@ -183,11 +183,16 @@ Current Status: ${currentStatus}
         });
       });
 
+      // 🔹 CRITICAL: activate plan AFTER tasks exist
+      batch.update(planRef, {
+        status: "active",
+      });
+
       try {
         await batch.commit();
       } catch (err) {
         console.error("Firestore write error:", err);
-        throw new HttpsError("internal", "Failed to save tasks.");
+        throw new HttpsError("internal", "Failed to save roadmap.");
       }
 
       return {success: true};
