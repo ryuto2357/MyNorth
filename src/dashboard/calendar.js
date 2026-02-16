@@ -1,4 +1,4 @@
-import { auth, db } from "../firebase.js";
+import { auth, db, functions } from "../firebase.js";
 import {
   collection,
   getDocs,
@@ -10,8 +10,12 @@ import {
 
 import { Calendar } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import { httpsCallable } from "firebase/functions";
+
+const getGoogleEventsFn = httpsCallable(functions, "getGoogleCalendarEvents");
 
 let currentCalendar = null;
+
 
 // ==========================
 // INIT
@@ -19,6 +23,7 @@ let currentCalendar = null;
 document.addEventListener("DOMContentLoaded", () => {
   loadCalendarTab();
 });
+
 
 // ==========================
 // LOAD CALENDAR TAB
@@ -57,8 +62,9 @@ export async function loadCalendarTab() {
   }
 }
 
+
 // ==========================
-// LOAD PLAN EVENTS
+// LOAD PLAN + GOOGLE EVENTS
 // ==========================
 async function loadCalendarForPlan(planId) {
 
@@ -73,7 +79,9 @@ async function loadCalendarForPlan(planId) {
 
   try {
 
-    // 🔹 Get plan data
+    // ==========================
+    // 🔹 GET PLAN DATA
+    // ==========================
     const planRef = doc(db, "users", user.uid, "plans", planId);
     const planSnap = await getDoc(planRef);
 
@@ -84,7 +92,9 @@ async function loadCalendarForPlan(planId) {
     const createdAt = planData.createdAt.toDate();
     const durationMonths = planData.durationMonths || 1;
 
-    // 🔹 Get all tasks ordered
+    // ==========================
+    // 🔹 GET TASKS
+    // ==========================
     const q = query(
       collection(db, "users", user.uid, "plans", planId, "tasks"),
       orderBy("orderIndex")
@@ -101,13 +111,12 @@ async function loadCalendarForPlan(planId) {
     });
 
     const totalTasks = tasks.length;
-
     const totalDays = durationMonths * 30;
     const daysPerTask = totalTasks > 0
       ? totalDays / totalTasks
       : 0;
 
-    const events = [];
+    const roadmapEvents = [];
 
     tasks.forEach(task => {
 
@@ -120,7 +129,7 @@ async function loadCalendarForPlan(planId) {
         Math.round(daysPerTask * task.orderIndex)
       );
 
-      events.push({
+      roadmapEvents.push({
         title: `Target: ${task.title}`,
         start: targetDate,
         allDay: true,
@@ -132,7 +141,7 @@ async function loadCalendarForPlan(planId) {
       // ==========================
       if (task.status === "completed" && task.completedAt) {
 
-        events.push({
+        roadmapEvents.push({
           title: `Completed: ${task.title}`,
           start: task.completedAt.toDate(),
           allDay: true,
@@ -141,11 +150,41 @@ async function loadCalendarForPlan(planId) {
       }
     });
 
+
+    // ==========================
+    // 🔹 FETCH GOOGLE EVENTS
+    // ==========================
+    let googleEvents = [];
+
+    try {
+      const result = await getGoogleEventsFn();
+
+      googleEvents = (result.data.events || []).map(ev => ({
+        title: `Google: ${ev.title || "No Title"}`,
+        start: ev.start,
+        end: ev.end,
+        color: "#ffc107" // yellow
+      }));
+
+    } catch (err) {
+      console.error("Google events fetch failed:", err);
+    }
+
+
+    // ==========================
+    // 🔹 MERGE EVENTS
+    // ==========================
+    const allEvents = [...roadmapEvents, ...googleEvents];
+
+
+    // ==========================
+    // 🔹 INIT CALENDAR
+    // ==========================
     currentCalendar = new Calendar(calendarEl, {
       plugins: [dayGridPlugin],
       initialView: "dayGridMonth",
       height: 650,
-      events: events
+      events: allEvents
     });
 
     currentCalendar.render();
