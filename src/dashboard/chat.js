@@ -297,11 +297,18 @@ function renderCompletionProposal(response, uid) {
           triggeredByChatId: null
         });
 
-        if (result.data.planCompleted) {
-          bubble.innerHTML = "🎉 Plan completed!";
-        } else {
-          bubble.innerHTML = "Task completed successfully.";
-        }
+        let finalMessage;
+
+if (result.data.planCompleted) {
+  finalMessage = "🎉 Plan completed!";
+} else {
+  finalMessage = "Task completed successfully.";
+}
+
+await saveAssistantMessage(uid, finalMessage);
+
+bubble.innerHTML = finalMessage;
+
 
       } catch (err) {
         console.error(err);
@@ -311,8 +318,11 @@ function renderCompletionProposal(response, uid) {
     });
 
   bubble.querySelector(".cancel-btn")
-    .addEventListener("click", () => {
-      bubble.innerHTML = "Okay, let's continue.";
+    .addEventListener("click", async () => {
+      const cancelMessage = "Okay, action cancelled.";
+await saveAssistantMessage(uid, cancelMessage);
+bubble.innerHTML = cancelMessage;
+
     });
 }
 
@@ -363,11 +373,18 @@ function renderCalendarProposal(response, uid) {
           triggeredByChatId: null
         });
 
-        if (result.data.success) {
-          bubble.innerHTML = "✅ Event added to Google Calendar.";
-        } else {
-          bubble.innerHTML = "Failed to create event.";
-        }
+        let finalMessage;
+
+if (result.data.success) {
+  finalMessage = "✅ Event added to Google Calendar.";
+} else {
+  finalMessage = "Failed to create event.";
+}
+
+await saveAssistantMessage(uid, finalMessage);
+
+bubble.innerHTML = finalMessage;
+
 
       } catch (err) {
         console.error(err);
