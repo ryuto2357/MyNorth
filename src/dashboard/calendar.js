@@ -160,11 +160,11 @@ async function loadCalendarForPlan(planId) {
       const result = await getGoogleEventsFn();
 
       googleEvents = (result.data.events || []).map(ev => ({
-        title: `Google: ${ev.title || "No Title"}`,
-        start: ev.start,
-        end: ev.end,
-        color: "#ffc107" // yellow
-      }));
+  title: `🟡 ${ev.title || "No Title"}`,
+  start: ev.start,
+  end: ev.end,
+  color: "#ffc107"
+}));
 
     } catch (err) {
       console.error("Google events fetch failed:", err);
@@ -181,11 +181,37 @@ async function loadCalendarForPlan(planId) {
     // 🔹 INIT CALENDAR
     // ==========================
     currentCalendar = new Calendar(calendarEl, {
-      plugins: [dayGridPlugin],
-      initialView: "dayGridMonth",
-      height: 650,
-      events: allEvents
-    });
+  plugins: [dayGridPlugin],
+  initialView: "dayGridMonth",
+  height: 650,
+  events: allEvents,
+
+  eventContent: function(arg) {
+
+    const event = arg.event;
+    const start = event.start;
+
+    let timeText = "";
+
+    if (!event.allDay && start) {
+      const hours = start.getHours().toString().padStart(2, "0");
+      const minutes = start.getMinutes().toString().padStart(2, "0");
+      timeText = `${hours}:${minutes} — `;
+    }
+
+    const container = document.createElement("div");
+    container.style.fontSize = "0.85rem";
+
+    container.innerHTML = `
+      <div>
+        ${timeText}${event.title.replace("Google: ", "")}
+      </div>
+    `;
+
+    return { domNodes: [container] };
+  }
+});
+
 
     currentCalendar.render();
 
