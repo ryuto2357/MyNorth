@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Firebase Emulators",
+      "type": "shell",
+      "command": "firebase emulators:start --import=./emulator-data --export-on-exit",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "NPM Watch",
+      "type": "shell",
+      "command": "npm run watch",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Dev Environment",
+      "dependsOn": [
+        "Firebase Emulators",
+        "NPM Watch"
+      ],
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}

@@ -1,7 +1,7 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, functions } from "./firebase.js";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { httpsCallable } from "firebase/functions";
 
 const form = document.getElementById("new-plan-form");
 
@@ -71,7 +71,6 @@ onAuthStateChanged(auth, async (user) => {
           completedAt: null
         });
 
-        const functions = getFunctions();
         const generateRoadmap = httpsCallable(functions, "generateRoadmap");
 
         await generateRoadmap({

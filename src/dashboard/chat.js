@@ -1,4 +1,4 @@
-import { auth, db } from "../firebase.js";
+import { auth, db, functions } from "../firebase.js";
 import {
   collection,
   getDocs,
@@ -11,25 +11,26 @@ import {
   deleteDoc
 } from "firebase/firestore";
 
+import { httpsCallable } from "firebase/functions";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+
 let currentPlanId = null;
 let isSending = false;
 
-const CLOUD_FUNCTION_URL = "https://chatgemini-zoxcu4jcta-uc.a.run.app";
-// Example:
-// https://us-central1-mynorthhub.cloudfunctions.net/chatGemini
-
+const chatMorgan = httpsCallable(functions, "chatMorgan");
+const completeTaskFn = httpsCallable(functions, "completeTask");
 
 // ==========================
-// Entry Point
+// Entry
 // ==========================
 export async function loadChatTab() {
   await loadPlans();
   setupSendButton();
 }
 
-
 // ==========================
-// Load Plans into Dropdown
+// Load Plans
 // ==========================
 async function loadPlans() {
 
@@ -59,7 +60,6 @@ async function loadPlans() {
   });
 }
 
-
 // ==========================
 // Load Chat History
 // ==========================
@@ -72,6 +72,14 @@ async function loadChatHistory() {
 
   const user = auth.currentUser;
 
+  const planRef = doc(db, "users", user.uid, "plans", currentPlanId);
+  const planSnap = await getDoc(planRef);
+
+  const isCompleted =
+    planSnap.exists() &&
+    planSnap.data().status === "completed";
+
+  // 1️⃣ Load chat history FIRST
   const messagesQuery = query(
     collection(db, "users", user.uid, "plans", currentPlanId, "chats"),
     orderBy("createdAt")
@@ -82,6 +90,18 @@ async function loadChatHistory() {
   snapshot.forEach(docSnap => {
     renderMessage(docSnap.data());
   });
+
+  // 2️⃣ If completed, disable input + show banner
+  if (isCompleted) {
+
+    document.getElementById("chat-input").disabled = true;
+    document.getElementById("send-btn").disabled = true;
+
+    renderMessage({
+      role: "assistant",
+      content: "🎉 This plan is completed. Create a new plan to continue."
+    });
+  }
 }
 
 
@@ -95,74 +115,67 @@ function setupSendButton() {
 
   async function sendMessage() {
 
-  if (isSending) return;
-  if (!currentPlanId) return alert("Select a plan first.");
+    if (isSending) return;
+    if (!currentPlanId) return alert("Select a plan first.");
 
-  const text = input.value.trim();
-  if (!text) return;
+    const text = input.value.trim();
+    if (!text) return;
 
-  input.value = "";
-  isSending = true;
-  btn.disabled = true;
+    input.value = "";
+    isSending = true;
+    btn.disabled = true;
 
-  const user = auth.currentUser;
+    const user = auth.currentUser;
 
-  try {
+    try {
 
-    // 1️⃣ Save user message
-    await addDoc(
-      collection(db, "users", user.uid, "plans", currentPlanId, "chats"),
-      {
-        role: "user",
-        content: text,
-        createdAt: new Date()
-      }
-    );
+      // Save user message
+      await addDoc(
+        collection(db, "users", user.uid, "plans", currentPlanId, "chats"),
+        {
+          role: "user",
+          content: text,
+          createdAt: new Date()
+        }
+      );
 
-    renderMessage({ role: "user", content: text });
+      renderMessage({ role: "user", content: text });
 
-    // 2️⃣ Show temporary thinking bubble
-    const thinkingBubble = renderThinkingBubble();
+      const thinkingBubble = renderThinkingBubble();
 
-    // 3️⃣ Get Plan Context
-    const planDoc = await getDoc(
-      doc(db, "users", user.uid, "plans", currentPlanId)
-    );
+      const planDoc = await getDoc(
+        doc(db, "users", user.uid, "plans", currentPlanId)
+      );
 
-    const planData = planDoc.data();
+      const planData = planDoc.data();
 
-    // 4️⃣ Get last 10 messages
-    const history = await getRecentMessages(user.uid, currentPlanId);
+      const history = await getRecentMessages(user.uid, currentPlanId);
+      const tasks = await getTasks(user.uid, currentPlanId);
 
-    // 5️⃣ Call backend
-    const aiReply = await callBackend(text, history, planData);
+      const result = await chatMorgan({
+        message: text,
+        history,
+        planContext: {
+          goal: planData.goal,
+          durationMonths: planData.durationMonths,
+          level: planData.level
+        },
+        tasks
+      });
 
-    // 6️⃣ Remove thinking bubble
-    thinkingBubble.remove();
+      thinkingBubble.remove();
 
-    // 7️⃣ Save assistant message
-    await addDoc(
-      collection(db, "users", user.uid, "plans", currentPlanId, "chats"),
-      {
-        role: "assistant",
-        content: aiReply,
-        createdAt: new Date()
-      }
-    );
+      await handleAIResponse(result.data, user.uid);
 
-    // 🔥 Enforce max 30 messages
-    await enforceChatLimit(user.uid, currentPlanId);
+      await enforceChatLimit(user.uid, currentPlanId);
 
-    renderMessage({ role: "assistant", content: aiReply });
+    } catch (error) {
+      console.error(error);
+    }
 
-  } catch (error) {
-    console.error(error);
+    isSending = false;
+    btn.disabled = false;
   }
-
-  isSending = false;
-  btn.disabled = false;
-}
-
 
   btn.addEventListener("click", sendMessage);
 
@@ -173,9 +186,143 @@ function setupSendButton() {
   });
 }
 
+// ==========================
+// Fetch Tasks
+// ==========================
+async function getTasks(uid, planId) {
+
+  const snapshot = await getDocs(
+    collection(db, "users", uid, "plans", planId, "tasks")
+  );
+
+  const tasks = [];
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+
+    tasks.push({
+      id: docSnap.id,
+      title: data.title,
+      description: data.description,
+      status: data.status,
+      orderIndex: data.orderIndex
+    });
+  });
+
+  return tasks;
+}
 
 // ==========================
-// Get Recent Messages (Last 10)
+// Handle AI Response
+// ==========================
+async function handleAIResponse(response, uid) {
+
+  if (!response || !response.type) {
+    renderMessage({
+      role: "assistant",
+      content: "Something went wrong."
+    });
+    return;
+  }
+
+  if (response.type === "NORMAL_REPLY" ||
+      response.type === "ASK_CLARIFICATION") {
+
+    await saveAssistantMessage(uid, response.message);
+
+    renderMessage({
+      role: "assistant",
+      content: response.message
+    });
+
+    return;
+  }
+
+  if (response.type === "PROPOSE_TASK_COMPLETION") {
+    renderCompletionProposal(response, uid);
+  }
+}
+
+// ==========================
+// Render Completion Proposal
+// ==========================
+function renderCompletionProposal(response, uid) {
+
+  const container = document.getElementById("chat-messages");
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "mb-2 d-flex justify-content-start";
+
+  const bubble = document.createElement("div");
+  bubble.className = "px-3 py-2 rounded-3 bg-white border";
+  bubble.style.maxWidth = "75%";
+
+  bubble.innerHTML = `
+    <div>${response.message}</div>
+    <div class="mt-2 d-flex gap-2">
+      <button class="btn btn-sm btn-success confirm-btn">
+        Confirm
+      </button>
+      <button class="btn btn-sm btn-secondary cancel-btn">
+        Cancel
+      </button>
+    </div>
+  `;
+
+  wrapper.appendChild(bubble);
+  container.appendChild(wrapper);
+
+  container.scrollTop = container.scrollHeight;
+
+  bubble.querySelector(".confirm-btn")
+    .addEventListener("click", async () => {
+
+      bubble.innerHTML = "Processing...";
+
+      try {
+
+        const result = await completeTaskFn({
+          planId: currentPlanId,
+          taskId: response.taskId,
+          triggeredByChatId: null
+        });
+
+        if (result.data.planCompleted) {
+          bubble.innerHTML = "🎉 Plan completed!";
+        } else {
+          bubble.innerHTML = "Task completed successfully.";
+        }
+
+      } catch (err) {
+        console.error(err);
+        bubble.innerHTML = "Failed to complete task.";
+      }
+
+    });
+
+  bubble.querySelector(".cancel-btn")
+    .addEventListener("click", () => {
+      bubble.innerHTML = "Okay, let's continue.";
+    });
+}
+
+// ==========================
+// Save Assistant Message
+// ==========================
+async function saveAssistantMessage(uid, message) {
+
+  await addDoc(
+    collection(db, "users", uid, "plans", currentPlanId, "chats"),
+    {
+      role: "assistant",
+      content: message,
+      createdAt: new Date()
+    }
+  );
+}
+
+// ==========================
+// Get Recent Messages
 // ==========================
 async function getRecentMessages(uid, planId) {
 
@@ -197,67 +344,12 @@ async function getRecentMessages(uid, planId) {
     });
   });
 
-  // Reverse so oldest comes first
   return messages.reverse();
 }
 
-
 // ==========================
-// Call Cloud Function
+// Render Thinking Bubble
 // ==========================
-async function callBackend(message, history, planData) {
-
-  const response = await fetch(CLOUD_FUNCTION_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      message,
-      history,
-      planContext: {
-        goal: planData.goal,
-        durationMonths: planData.durationMonths,
-        level: planData.level,
-        progress: planData.progress || 0
-      }
-    })
-  });
-
-  const data = await response.json();
-
-  return data.message;
-}
-
-
-// ==========================
-// Render Message
-// ==========================
-function renderMessage(message) {
-
-  const container = document.getElementById("chat-messages");
-
-  const isUser = message.role === "user";
-
-  const wrapper = document.createElement("div");
-  wrapper.className = `mb-2 d-flex ${isUser ? "justify-content-end" : "justify-content-start"}`;
-
-  const bubble = document.createElement("div");
-  bubble.className = `
-    px-3 py-2 rounded-3
-    ${isUser ? "bg-primary text-white" : "bg-white border"}
-  `;
-  bubble.style.maxWidth = "75%";
-  bubble.style.whiteSpace = "pre-wrap";
-
-  bubble.textContent = message.content;
-
-  wrapper.appendChild(bubble);
-  container.appendChild(wrapper);
-
-  container.scrollTop = container.scrollHeight;
-}
-
 function renderThinkingBubble() {
 
   const container = document.getElementById("chat-messages");
@@ -277,11 +369,40 @@ function renderThinkingBubble() {
 
   container.scrollTop = container.scrollHeight;
 
-  return wrapper; // IMPORTANT: return element so we can remove it later
+  return wrapper;
 }
 
 // ==========================
-// Keep Only Last 30 Messages
+// Render Message (Markdown)
+// ==========================
+function renderMessage(message) {
+
+  const container = document.getElementById("chat-messages");
+  const isUser = message.role === "user";
+
+  const wrapper = document.createElement("div");
+  wrapper.className = `mb-2 d-flex ${isUser ? "justify-content-end" : "justify-content-start"}`;
+
+  const bubble = document.createElement("div");
+  bubble.className = `
+    px-3 py-2 rounded-3
+    ${isUser ? "bg-primary text-white" : "bg-white border"}
+  `;
+
+  bubble.style.maxWidth = "75%";
+
+  bubble.innerHTML = DOMPurify.sanitize(
+    marked.parse(message.content)
+  );
+
+  wrapper.appendChild(bubble);
+  container.appendChild(wrapper);
+
+  container.scrollTop = container.scrollHeight;
+}
+
+// ==========================
+// Enforce 30 Messages
 // ==========================
 async function enforceChatLimit(uid, planId) {
 
@@ -291,12 +412,9 @@ async function enforceChatLimit(uid, planId) {
     query(chatsRef, orderBy("createdAt", "desc"))
   );
 
-  const docs = snapshot.docs;
+  if (snapshot.docs.length <= 30) return;
 
-  if (docs.length <= 30) return;
-
-  // Keep first 30 (newest), delete the rest
-  const docsToDelete = docs.slice(30);
+  const docsToDelete = snapshot.docs.slice(30);
 
   for (const docSnap of docsToDelete) {
     await deleteDoc(docSnap.ref);

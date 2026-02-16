@@ -5,9 +5,9 @@ import {
   deleteDoc,
   doc,
   query,
-  orderBy
+  orderBy,
+  getDoc
 } from "firebase/firestore";
-
 
 // ==========================
 // LOAD PLAN LIST
@@ -16,9 +16,7 @@ export async function loadPlanTab() {
 
   const container = document.getElementById("plans-container");
 
-  container.innerHTML = `
-    <div class="text-muted">Loading plans...</div>
-  `;
+  container.innerHTML = `<div class="text-muted">Loading plans...</div>`;
 
   const user = auth.currentUser;
 
@@ -49,7 +47,6 @@ export async function loadPlanTab() {
       const data = docSnap.data();
       const planId = docSnap.id;
 
-      // 🔹 Load tasks to calculate progress (DERIVED ONLY)
       const tasksSnapshot = await getDocs(
         collection(db, "users", user.uid, "plans", planId, "tasks")
       );
@@ -62,10 +59,7 @@ export async function loadPlanTab() {
 
         if (task.status !== "deleted") {
           totalActive++;
-
-          if (task.status === "completed") {
-            completed++;
-          }
+          if (task.status === "completed") completed++;
         }
       });
 
@@ -73,11 +67,18 @@ export async function loadPlanTab() {
         totalActive === 0 ? 0 :
         Math.round((completed / totalActive) * 100);
 
+      const statusBadge = data.status === "completed"
+        ? `<span class="badge bg-success">Completed</span>`
+        : `<span class="badge bg-primary">Active</span>`;
+
       const card = `
         <div class="col-md-6 col-lg-4">
           <div class="card shadow-sm h-100">
             <div class="card-body">
-              <h6 class="card-title">${data.goal}</h6>
+              <h6 class="card-title d-flex justify-content-between">
+                ${data.goal}
+                ${statusBadge}
+              </h6>
 
               <p class="text-muted small">
                 Duration: ${data.durationMonths} months
@@ -94,26 +95,18 @@ export async function loadPlanTab() {
               <small>${progress}% completed</small>
 
               <div class="mt-3 d-flex gap-2">
-
                 <button 
                   class="btn btn-outline-primary btn-sm view-plan"
                   data-id="${planId}">
                   View
                 </button>
 
-                <a href="/newPlan.html?edit=true&id=${planId}" 
-                   class="btn btn-outline-secondary btn-sm">
-                  Edit
-                </a>
-
                 <button 
                   class="btn btn-outline-danger btn-sm delete-plan"
                   data-id="${planId}">
                   Delete
                 </button>
-
               </div>
-
             </div>
           </div>
         </div>
@@ -130,7 +123,6 @@ export async function loadPlanTab() {
     container.innerHTML = "Error loading plans.";
   }
 }
-
 
 // ==========================
 // LOAD PLAN DETAIL (TASKS)
@@ -153,6 +145,17 @@ async function loadPlanDetail(planId) {
 
   try {
 
+    const planRef = doc(db, "users", user.uid, "plans", planId);
+    const planSnap = await getDoc(planRef);
+
+    if (!planSnap.exists()) {
+      container.innerHTML = "Plan not found.";
+      return;
+    }
+
+    const planData = planSnap.data();
+    const isCompleted = planData.status === "completed";
+
     const q = query(
       collection(db, "users", user.uid, "plans", planId, "tasks"),
       orderBy("orderIndex")
@@ -160,12 +163,8 @@ async function loadPlanDetail(planId) {
 
     const snapshot = await getDocs(q);
 
-    if (snapshot.empty) {
-      container.innerHTML += `<p>No tasks.</p>`;
-      return;
-    }
-
     let firstPendingFound = false;
+
     let html = `
       <div class="mb-3">
         <button class="btn btn-sm btn-outline-secondary" id="back-to-plans">
@@ -174,10 +173,17 @@ async function loadPlanDetail(planId) {
       </div>
     `;
 
+    if (isCompleted) {
+      html += `
+        <div class="alert alert-success">
+          🎉 This plan is completed.
+        </div>
+      `;
+    }
+
     snapshot.forEach(docSnap => {
 
       const task = docSnap.data();
-
       if (task.status === "deleted") return;
 
       let badge = "";
@@ -186,7 +192,7 @@ async function loadPlanDetail(planId) {
       if (task.status === "completed") {
         badge = `<span class="badge bg-success">Completed</span>`;
       } 
-      else if (!firstPendingFound) {
+      else if (!firstPendingFound && !isCompleted) {
         badge = `<span class="badge bg-primary">Active</span>`;
         firstPendingFound = true;
       } 
@@ -212,7 +218,6 @@ async function loadPlanDetail(planId) {
 
     container.innerHTML = html;
 
-    // Back button
     document
       .getElementById("back-to-plans")
       .addEventListener("click", loadPlanTab);
@@ -223,80 +228,62 @@ async function loadPlanDetail(planId) {
   }
 }
 
-
 // ==========================
 // VIEW BUTTON
 // ==========================
 function attachViewListeners(uid) {
 
-  const viewButtons = document.querySelectorAll(".view-plan");
-
-  viewButtons.forEach(button => {
-
-    button.addEventListener("click", (e) => {
-
-      const planId = e.target.getAttribute("data-id");
-      loadPlanDetail(planId);
-
+  document.querySelectorAll(".view-plan")
+    .forEach(button => {
+      button.addEventListener("click", (e) => {
+        const planId = e.target.getAttribute("data-id");
+        loadPlanDetail(planId);
+      });
     });
-
-  });
 }
 
-
 // ==========================
-// DELETE LOGIC (FULL CLEAN)
+// DELETE LOGIC
 // ==========================
 function attachDeleteListeners(uid) {
 
-  const deleteButtons = document.querySelectorAll(".delete-plan");
+  document.querySelectorAll(".delete-plan")
+    .forEach(button => {
 
-  deleteButtons.forEach(button => {
+      button.addEventListener("click", async (e) => {
 
-    button.addEventListener("click", async (e) => {
+        const planId = e.target.getAttribute("data-id");
 
-      const planId = e.target.getAttribute("data-id");
+        if (!confirm("Delete this plan?")) return;
 
-      const confirmDelete = confirm(
-        "Are you sure you want to delete this plan and all its data?"
-      );
+        try {
 
-      if (!confirmDelete) return;
+          const planRef = doc(db, "users", uid, "plans", planId);
 
-      try {
+          const chatsSnapshot = await getDocs(
+            collection(db, "users", uid, "plans", planId, "chats")
+          );
 
-        const planRef = doc(db, "users", uid, "plans", planId);
+          for (const chatDoc of chatsSnapshot.docs) {
+            await deleteDoc(chatDoc.ref);
+          }
 
-        // 1️⃣ Delete chats
-        const chatsSnapshot = await getDocs(
-          collection(db, "users", uid, "plans", planId, "chats")
-        );
+          const tasksSnapshot = await getDocs(
+            collection(db, "users", uid, "plans", planId, "tasks")
+          );
 
-        for (const chatDoc of chatsSnapshot.docs) {
-          await deleteDoc(chatDoc.ref);
+          for (const taskDoc of tasksSnapshot.docs) {
+            await deleteDoc(taskDoc.ref);
+          }
+
+          await deleteDoc(planRef);
+
+          loadPlanTab();
+
+        } catch (error) {
+          console.error(error);
+          alert("Failed to delete plan.");
         }
-
-        // 2️⃣ Delete tasks
-        const tasksSnapshot = await getDocs(
-          collection(db, "users", uid, "plans", planId, "tasks")
-        );
-
-        for (const taskDoc of tasksSnapshot.docs) {
-          await deleteDoc(taskDoc.ref);
-        }
-
-        // 3️⃣ Delete plan document
-        await deleteDoc(planRef);
-
-        // 4️⃣ Reload
-        loadPlanTab();
-
-      } catch (error) {
-        console.error(error);
-        alert("Failed to delete plan.");
-      }
-
+      });
     });
-
-  });
 }
