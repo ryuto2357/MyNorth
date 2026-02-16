@@ -163,6 +163,30 @@ async function loadPlanDetail(planId) {
 
     const snapshot = await getDocs(q);
 
+    // ==========================
+    // DERIVED PROGRESS
+    // ==========================
+
+    let totalActive = 0;
+    let completed = 0;
+
+    snapshot.forEach(docSnap => {
+      const task = docSnap.data();
+
+      if (task.status !== "deleted") {
+        totalActive++;
+        if (task.status === "completed") completed++;
+      }
+    });
+
+    const progress =
+      totalActive === 0 ? 0 :
+      Math.round((completed / totalActive) * 100);
+
+    // ==========================
+    // RENDER UI
+    // ==========================
+
     let firstPendingFound = false;
 
     let html = `
@@ -170,6 +194,18 @@ async function loadPlanDetail(planId) {
         <button class="btn btn-sm btn-outline-secondary" id="back-to-plans">
           ← Back
         </button>
+      </div>
+
+      <div class="mb-3">
+        <h5>${planData.goal}</h5>
+        <div class="progress mb-2" style="height: 8px;">
+          <div 
+            class="progress-bar" 
+            role="progressbar"
+            style="width: ${progress}%;">
+          </div>
+        </div>
+        <small>${progress}% completed (${completed}/${totalActive})</small>
       </div>
     `;
 
@@ -228,6 +264,7 @@ async function loadPlanDetail(planId) {
   }
 }
 
+
 // ==========================
 // VIEW BUTTON
 // ==========================
@@ -260,6 +297,7 @@ function attachDeleteListeners(uid) {
 
           const planRef = doc(db, "users", uid, "plans", planId);
 
+          // 🔹 Delete chats
           const chatsSnapshot = await getDocs(
             collection(db, "users", uid, "plans", planId, "chats")
           );
@@ -268,6 +306,7 @@ function attachDeleteListeners(uid) {
             await deleteDoc(chatDoc.ref);
           }
 
+          // 🔹 Delete tasks
           const tasksSnapshot = await getDocs(
             collection(db, "users", uid, "plans", planId, "tasks")
           );
@@ -276,6 +315,16 @@ function attachDeleteListeners(uid) {
             await deleteDoc(taskDoc.ref);
           }
 
+          // 🔹 Delete actions (NEW)
+          const actionsSnapshot = await getDocs(
+            collection(db, "users", uid, "plans", planId, "actions")
+          );
+
+          for (const actionDoc of actionsSnapshot.docs) {
+            await deleteDoc(actionDoc.ref);
+          }
+
+          // 🔹 Delete plan itself
           await deleteDoc(planRef);
 
           loadPlanTab();

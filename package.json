@@ -20,6 +20,8 @@
     "watch": "webpack --watch --mode=development"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
     "dayjs": "^1.11.19",
     "dompurify": "^3.3.1",
     "firebase": "^12.8.0",

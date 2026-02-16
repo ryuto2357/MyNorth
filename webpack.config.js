@@ -12,6 +12,7 @@ export default {
     intro: "./src/intro.js",
     newPlan: "./src/newPlan.js",
   },
+
   output: {
     filename: "[name].bundle.js",
     path: path.resolve(__dirname, "public", "js"),

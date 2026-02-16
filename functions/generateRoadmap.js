@@ -22,11 +22,19 @@ exports.generateRoadmap = onCall(
         throw new HttpsError("unauthenticated", "Login required.");
       }
 
-      const {planId, goal, durationMonths, level} = data;
+      const {planId, goal, durationMonths, currentStatus} = data;
       const uid = auth.uid;
 
-      if (!planId || !goal || !durationMonths || !level) {
-        throw new HttpsError("invalid-argument", "Missing fields.");
+      // ✅ Strict validation
+      if (
+        !planId ||
+      !goal ||
+      !durationMonths ||
+      !currentStatus ||
+      typeof goal !== "string" ||
+      typeof currentStatus !== "string"
+      ) {
+        throw new HttpsError("invalid-argument", "Missing or invalid fields.");
       }
 
       const client = new OpenAI({
@@ -41,20 +49,31 @@ exports.generateRoadmap = onCall(
           input: [
             {
               role: "system",
-              content: "You are Morgan. Generate structured roadmap only.",
+              content: `
+You are Morgan.
+
+Generate a full ordered roadmap for a user's goal.
+
+Rules:
+- Generate ALL tasks at once.
+- Tasks must be sequential and logically ordered.
+- Equal weight.
+- No optional branches.
+- No motivational language.
+- No explanations outside JSON.
+- DurationMonths only guides how many tasks to generate.
+- Use currentStatus to understand starting level.
+
+Return STRICT JSON only.
+            `,
             },
             {
               role: "user",
               content: `
 Goal: ${goal}
 Duration (months): ${durationMonths}
-Level: ${level}
-
-Rules:
-- Sequential
-- Equal weight
-- No explanation outside JSON
-`,
+Current Status: ${currentStatus}
+            `,
             },
           ],
           text: {
@@ -65,25 +84,37 @@ Rules:
               schema: {
                 type: "object",
                 additionalProperties: false,
+                required: ["tasks"],
                 properties: {
                   tasks: {
                     type: "array",
+                    minItems: 1,
                     items: {
                       type: "object",
                       additionalProperties: false,
+                      required: ["orderIndex", "title", "description"],
                       properties: {
-                        title: {type: "string"},
-                        description: {type: "string"},
+                        orderIndex: {
+                          type: "integer",
+                          minimum: 1,
+                        },
+                        title: {
+                          type: "string",
+                          minLength: 5,
+                        },
+                        description: {
+                          type: "string",
+                          minLength: 10,
+                        },
                       },
-                      required: ["title", "description"],
                     },
                   },
                 },
-                required: ["tasks"],
               },
             },
           },
         });
+
         console.log("RAW COMPLETION:", JSON.stringify(completion, null, 2));
       } catch (err) {
         console.error("OpenAI error:", err);
@@ -127,10 +158,13 @@ Rules:
         throw new HttpsError("internal", "Invalid roadmap structure.");
       }
 
+      // 🔹 Deterministic ordering safeguard
+      result.tasks.sort((a, b) => a.orderIndex - b.orderIndex);
+
       // 🔹 Batch write tasks
       const batch = db.batch();
 
-      result.tasks.forEach((task, index) => {
+      result.tasks.forEach((task) => {
         const taskRef = db
             .collection("users")
             .doc(uid)
@@ -140,7 +174,7 @@ Rules:
             .doc();
 
         batch.set(taskRef, {
-          orderIndex: index,
+          orderIndex: task.orderIndex,
           title: task.title,
           description: task.description,
           status: "pending",

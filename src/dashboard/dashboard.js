@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { loadPlanTab } from "./plan.js";
 import { loadChatTab } from "./chat.js";
-// import { loadCalendarTab } from "./calendar.js";
+import { loadCalendarTab } from "./calendar.js";
 
 const tabContent = document.getElementById("tab-content");
 const tabs = document.querySelectorAll("[data-tab]");
@@ -67,7 +67,7 @@ async function loadTab(tabName) {
 
   // comment others for now so no error
   if (tabName === "chat") loadChatTab();
-  // if (tabName === "calendar") loadCalendarTab();
+  if (tabName === "calendar") loadCalendarTab();
 }
 
 // tab click

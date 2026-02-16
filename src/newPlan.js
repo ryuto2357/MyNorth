@@ -1,13 +1,9 @@
 import { auth, db, functions } from "./firebase.js";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 
 const form = document.getElementById("new-plan-form");
-
-const urlParams = new URLSearchParams(window.location.search);
-const isEditMode = urlParams.get("edit") === "true";
-const planId = urlParams.get("id");
 
 onAuthStateChanged(auth, async (user) => {
 
@@ -16,73 +12,42 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  if (isEditMode && planId) {
-
-    const docRef = doc(db, "users", user.uid, "plans", planId);
-    const snap = await getDoc(docRef);
-
-    if (snap.exists()) {
-      const data = snap.data();
-
-      document.getElementById("goal").value = data.goal;
-      document.getElementById("duration").value = data.durationMonths;
-      document.getElementById("level").value = data.level;
-
-      document.querySelector("h3").textContent = "Edit Plan";
-      form.querySelector("button").textContent = "Save Changes";
-    }
-  }
-
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const goal = document.getElementById("goal").value;
+    const goal = document.getElementById("goal").value.trim();
     const duration = parseInt(document.getElementById("duration").value);
-    const level = document.getElementById("level").value;
+    const currentStatus = document.getElementById("currentStatus").value.trim();
+
+    if (!goal || !duration || !currentStatus) {
+      alert("Please fill all fields.");
+      return;
+    }
 
     try {
 
-      if (isEditMode && planId) {
+      const newPlanId = crypto.randomUUID();
+      const planRef = doc(db, "users", user.uid, "plans", newPlanId);
 
-        await updateDoc(
-          doc(db, "users", user.uid, "plans", planId),
-          {
-            goal,
-            durationMonths: duration,
-            level,
-            updatedAt: new Date()
-          }
-        );
+      await setDoc(planRef, {
+        goal,
+        durationMonths: duration,
+        currentStatus,
+        status: "active",
+        createdAt: new Date(),
+        completedAt: null
+      });
 
-        alert("Plan updated!");
+      const generateRoadmap = httpsCallable(functions, "generateRoadmap");
 
-      } else {
+      await generateRoadmap({
+        planId: newPlanId,
+        goal,
+        durationMonths: duration,
+        currentStatus
+      });
 
-        const newPlanId = crypto.randomUUID();
-
-        const planRef = doc(db, "users", user.uid, "plans", newPlanId);
-
-        await setDoc(planRef, {
-          goal,
-          durationMonths: duration,
-          level,
-          status: "active",
-          createdAt: new Date(),
-          completedAt: null
-        });
-
-        const generateRoadmap = httpsCallable(functions, "generateRoadmap");
-
-        await generateRoadmap({
-          planId: newPlanId,
-          goal,
-          durationMonths: duration,
-          level
-        });
-
-        alert("Plan created!");
-      }
-
+      alert("Plan created!");
       window.location.href = "/dashboard.html";
 
     } catch (error) {

@@ -30,19 +30,25 @@
           <input type="number" class="form-control" id="duration" min="1" required>
         </div>
 
-        <!-- Experience -->
-        <div class="mb-4">
-          <label class="form-label">Current Level</label>
-          <select class="form-select" id="level">
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
-          </select>
-        </div>
+        <!-- Current Status -->
+<div class="mb-4">
+  <label class="form-label">
+    Describe your current status as detailed as possible
+  </label>
+  <textarea
+    class="form-control"
+    id="currentStatus"
+    rows="4"
+    placeholder="Example: I know basic guitar chords but cannot play full songs. I practice 1–2 times per week. I struggle with rhythm and finger speed."
+    required
+  ></textarea>
+</div>
+
 
         <button type="submit" class="btn btn-primary w-100">
-          Generate Plan
-        </button>
+  Generate Roadmap
+</button>
+
 
       </form>
 
