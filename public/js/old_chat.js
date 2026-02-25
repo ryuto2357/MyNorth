@@ -307,6 +307,9 @@ sendButton.addEventListener("click", async () => {
     // We check if the user is logged in via Google. If so, we grab the token.
     const tokenObj = gapi.client.getToken();
     const accessToken = tokenObj ? tokenObj.access_token : null;
+    // Timezone
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     // 2. SEND TO BACKEND
     // "https://chatgemini-zoxcu4jcta-uc.a.run.app"
     const response = await fetch(
@@ -317,7 +320,8 @@ sendButton.addEventListener("click", async () => {
         body: JSON.stringify({
           history: tab.messages,
           message: userMessage,
-          accessToken: accessToken
+          accessToken: accessToken,
+          timeZone: userTimeZone
         }),
       }
     );
