@@ -1,22 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Node Physics Sandbox</title>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #f4f4f9; }
-        svg { display: block; width: 100vw; height: 100vh; }
-        
-        /* Styling for the elements */
-        line { stroke: #999; stroke-opacity: 0.6; stroke-width: 1.5px; }
-        circle { stroke: #fff; stroke-width: 1.5px; cursor: grab; }
-        circle:active { cursor: grabbing; }
-    </style>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyNorth Dashboard</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <style>
+    /* Dark Mode Variables */
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #212529;
+      --card-bg: #ffffff;
+      --border-color: #dee2e6;
+    }
+    
+    [data-theme="dark"] {
+      --bg-color: #212529;
+      --text-color: #f8f9fa;
+      --card-bg: #343a40;
+      --border-color: #495057;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border-color: var(--border-color);
+    }
+
+    .card-header, .card-footer {
+      background-color: rgba(0,0,0,0.03);
+      border-color: var(--border-color);
+    }
+
+    /* Add these to your existing <style> tag */
+    line { stroke: #999; stroke-opacity: 0.6; stroke-width: 1.5px; }
+    circle { stroke: #fff; stroke-width: 1.5px; cursor: grab; }
+    circle:active { cursor: grabbing; }
+
+    /* Ensure the sandbox fills the card area */
+    #sandbox {
+      width: 100%;
+      height: 600px; /* Matching your chat log height */
+      background-color: #f4f4f9;
+      border-radius: 4px;
+    }
+    #sandbox svg { width: 100%; height: 100%; }
+    
+    /* Chat Specifics */
+    #chatLogs {
+      background-color: var(--bg-color);
+    }
+  </style>
 </head>
 <body>
-    <div id="sandbox"></div>
 
-    <script src="./js/constellation.bundle.js"></script>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom mb-4">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1">MyNorth AI</span>
+      <div class="d-flex align-items-center">
+        <button class="btn btn-outline-secondary btn-sm" id="themeToggle">🌙</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid">
+    <div class="row">
+      
+      <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+          
+          <div class="card-header d-flex align-items-center p-0">
+            <ul class="nav nav-tabs flex-grow-1 border-bottom-0" id="chatTabs"></ul>
+            <button class="btn btn-sm btn-success m-2" id="newTabBtn" title="New chat">+</button>
+          </div>
+
+          <div class="card-body overflow-auto" id="chatLogs" style="height: 600px;">
+            </div>
+
+          <div class="card-footer">
+            <div class="input-group">
+              <textarea class="form-control border-success shadow-sm" id="chatTextArea" placeholder="Ask to schedule a meeting..." rows="1"></textarea>
+              <button class="btn btn-success px-4" id="sendButton">Send</button>
+            </div>
+            <small class="text-muted mt-1 d-block">Try: "Book a meeting for tomorrow at 2pm"</small>
+          </div>
+        </div>
+        <div class="card shadow-sm mt-4">
+          <div class="card-header bg-warning text-dark">Developer Debug Tools</div>
+          <div class="card-body">
+            <h6>Create Node</h6>
+            <div class="mb-2">
+              <input type="text" id="nodeLabel" class="form-control form-control-sm" placeholder="Node Label (e.g., Neuroscience)">
+            </div>
+            <div class="mb-2">
+              <select id="nodeLevel" class="form-select form-select-sm">
+                <option value="0">Seniority 0 (Root)</option>
+                <option value="1">Seniority 1 (Major)</option>
+                <option value="2" selected>Seniority 2 (Atomic)</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <input type="file" id="nodeFile" class="form-control form-control-sm" accept=".md">
+            </div>
+            <button class="btn btn-sm btn-primary w-100 mb-3" onclick="debugCreateNode()">Add Node</button>
+
+            <hr>
+
+            <h6>Link Nodes</h6>
+            <div class="mb-2">
+              <input type="text" id="sourceId" class="form-control form-control-sm" placeholder="Source Node ID">
+            </div>
+            <div class="mb-2">
+              <input type="text" id="targetId" class="form-control form-control-sm" placeholder="Target Node ID">
+            </div>
+            <div class="mb-2">
+              <select id="linkType" class="form-select form-select-sm">
+                <option value="PARENT_OF">Parent Of (Solid)</option>
+                <option value="SYNAPSE">Synapse (Dotted)</option>
+              </select>
+            </div>
+            <button class="btn btn-sm btn-secondary w-100" onclick="debugCreateLink()">Connect Nodes</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-8 mb-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-body p-0"> 
+            <div id="sandbox"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="modal fade" id="mdViewerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content shadow">
+        <div class="modal-header border-bottom-0">
+          <h5 class="modal-title fw-bold" id="mdViewerTitle">Node Content</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="mdViewerBody">
+          </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.7/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+
+  <script src="./js/constellation.bundle.js"></script>
+
 </body>
 </html>

@@ -1,7 +1,21 @@
 import * as d3 from 'd3';
+import { initChat } from './old_chat.js';
 
 const width = window.innerWidth;
 const height = window.innerHeight;
+
+const HOST = "localhost";
+const PORT = "5001";
+const PROJECT = "mynorthhub"; // Found in firebase.json or Firebase console
+const REGION = "us-central1";
+const FUNCTION_NAME = "constellationApi";
+
+const BASE_URL = `http://${HOST}:${PORT}/${PROJECT}/${REGION}/${FUNCTION_NAME}`;
+const TEST_USER_ID = "FkNqVdJkVXUKTrErRvD204mNI3q2"; 
+
+let nodes = [];
+let links = [];
+let clusters = [];
 
 // style functions
 const getNodeRadius = (node) => {
@@ -17,7 +31,7 @@ const getNodeColor = (node) => {
   if (node.status === 'ARCHIVED') return '#95A5A6'; // Gray
   
   // Active nodes: color by familiarity score
-  const familiarity = node.metadata.familiarity_score;
+  const familiarity = node.metadata?.familiarity_score || 0;
   if (familiarity >= 8) return '#2ECC71'; // Green (expert)
   if (familiarity >= 5) return '#F39C12'; // Orange (intermediate)
   return '#3498DB'; // Blue (novice)
@@ -38,79 +52,21 @@ const shouldShowLabel = (node, zoomLevel) => {
  * @param {number} n - Total number of nodes
  * @param {number} k - Number of clusters (topics)
  */
-const generateClusteredData = (width, height, n, k = 3) => {
-  const nodes = [];
-  const links = [];
-  const clusters = [];
 
-  // 1. GENERATE CLUSTERS (The Gravity Wells)
-  // We arrange them in a circle around the center of the screen
-  const radius = Math.min(width, height) * 0.25; // Clusters sit 25% out from center
-  const center = { x: width / 2, y: height / 2 };
-
-  for (let i = 0; i < k; i++) {
-    const angle = (i / k) * 2 * Math.PI; // Evenly distribute angles
-    clusters.push({
-      id: `cluster-${i}`,
-      label: `Domain ${i + 1}`,
-      x: center.x + radius * Math.cos(angle), // Polar to Cartesian conversion
-      y: center.y + radius * Math.sin(angle)
-    });
-  }
-
-  // 2. GENERATE NODES
-  // We need at least one Level 0 node per cluster to act as the anchor
-  clusters.forEach((cluster, i) => {
-    // A. Create the Cluster "Anchor" (Seniority 0)
-    const anchorId = `anchor-${i}`;
-    nodes.push({
-      id: anchorId,
-      cluster_id: cluster.id,
-      seniority_level: 0, // Will sit at radius 0 (center of cluster)
-      status: 'ACTIVE',
-      label: `${cluster.label} Lead`,
-      metadata: { familiarity_score: 10 }
-    });
-
-    // B. Create Major Topics (Seniority 1)
-    const majorCount = 3;
-    for (let m = 0; m < majorCount; m++) {
-      const majorId = `major-${i}-${m}`;
-      nodes.push({
-        id: majorId,
-        cluster_id: cluster.id,
-        seniority_level: 1, // Will orbit at radius 150
-        status: 'ACTIVE',
-        label: `Topic ${m + 1}`,
-        metadata: { familiarity_score: Math.floor(Math.random() * 8) + 2 }
-      });
-      // Link to the anchor
-      links.push({ source: anchorId, target: majorId });
-
-      // C. Create Atomic Tasks (Seniority 2)
-      // Distribute remaining n nodes across these sub-topics
-      const taskCount = Math.floor((n - k - (k * majorCount)) / (k * majorCount));
-      for (let t = 0; t < taskCount; t++) {
-        const taskId = `task-${i}-${m}-${t}`;
-        nodes.push({
-          id: taskId,
-          cluster_id: cluster.id,
-          seniority_level: 2, // Will orbit at radius 250
-          status: Math.random() > 0.8 ? 'WITHERING' : 'ACTIVE',
-          label: `Task ${t + 1}`,
-          metadata: { familiarity_score: Math.floor(Math.random() * 10) }
-        });
-        links.push({ source: majorId, target: taskId });
-      }
-    }
-  });
-
-  return { nodes, links, clusters };
-};
-
-const { nodes, links, clusters } = generateClusteredData(window.innerWidth, window.innerHeight, 60, 3);
-
-d3.select("#sandbox").selectAll("*").remove();
+async function initGraph() {
+  const response = await fetch(`${BASE_URL}/graph/${TEST_USER_ID}`);
+  const data = await response.json();
+  
+  nodes = data.nodes;
+  links = data.links.map(l => ({
+    ...l,
+    source: l.source_id, // Map database field to D3 expectation
+    target: l.target_id
+  }));
+  
+  // Re-run the simulation logic with real data
+  renderSimulation();
+}
 
 const svg = d3.select("#sandbox")
     .append("svg")
@@ -154,7 +110,7 @@ const drag = d3.drag()
   });
 
 // Links
-const link = container.append("g")
+let link = container.append("g")
   .attr("stroke", "#999")
   .attr("stroke-opacity", 0.6)
   .selectAll("line")
@@ -162,7 +118,7 @@ const link = container.append("g")
   .join("line");
 
 // Nodes (Circles)
-const node = container.append("g")
+let node = container.append("g")
   .selectAll("circle")
   .data(nodes)
   .join("circle")
@@ -174,7 +130,7 @@ const node = container.append("g")
   .call(drag);
 
 // Labels (Text)
-const label = container.append("g")
+let label = container.append("g")
   .attr("font-family", "sans-serif")
   .attr("font-size", 10)
   .attr("pointer-events", "none") // Don't let text capture mouse clicks
@@ -253,4 +209,144 @@ simulation.on("tick", () => {
   label
     .attr("x", d => d.x)
     .attr("y", d => d.y);
+});
+
+function renderSimulation() {
+  // 1. Update Links (Lines)
+  link = link
+    .data(links, d => d.id || `${d.source.id || d.source}-${d.target.id || d.target}`)
+    .join("line")
+    // Keep dynamic relation styling (from protocol), but rely on parent <g> for base color/opacity
+    .attr("stroke-width", d => d.relation_type === 'PARENT_OF' ? 2 : 1)
+    .attr("stroke-dasharray", d => d.relation_type === 'SYNAPSE' ? "4,4" : "0");
+
+  // 2. Update Nodes (Circles)
+  node = node
+    .data(nodes, d => d.id)
+    .join("circle")
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1.5)
+    .attr("r", d => getNodeRadius(d))
+    .attr("fill", d => getNodeColor(d))
+    .attr("cursor", "pointer") // Visual cue that it's clickable
+    .on("click", async (event, d) => {
+      // Check if the node has an attached file
+      if (!d.file_path) {
+        console.log("No file attached to this node.");
+        return;
+      }
+
+      try {
+        // Fetch the markdown content using the linked ID
+        const res = await fetch(`${BASE_URL}/users/${TEST_USER_ID}/files/${d.file_path}`);
+        const fileData = await res.json();
+
+        // Set the title
+        document.getElementById('mdViewerTitle').innerText = d.label;
+
+        // Parse Markdown to HTML and sanitize it
+        const rawHtml = marked.parse(fileData.content);
+        const safeHtml = DOMPurify.sanitize(rawHtml);
+
+        // Inject and show modal
+        document.getElementById('mdViewerBody').innerHTML = safeHtml;
+        const viewerModal = new bootstrap.Modal(document.getElementById('mdViewerModal'));
+        viewerModal.show();
+      } catch (error) {
+        console.error("Error loading node file:", error);
+      }
+    })
+    .call(drag); // Re-attach drag behavior to new nodes
+
+  // 3. Update Labels (Text)
+  label = label
+    .data(nodes, d => d.id)
+    .join("text")
+    .text(d => d.label)
+    .attr("dx", 0)
+    .attr("dy", d => getNodeRadius(d) + 12);
+
+  // 4. Update and Restart Simulation
+  simulation.nodes(nodes);
+  simulation.force("link").links(links);
+  
+  // "Alpha" is the heat of the simulation. 1 restarts the movement.
+  simulation.alpha(1).restart();
+}
+
+initGraph();
+
+
+/**
+ * Manually trigger Node Creation Protocol
+ */
+window.debugCreateNode = async () => {
+  const label = document.getElementById('nodeLabel').value;
+  const level = parseInt(document.getElementById('nodeLevel').value);
+  const fileInput = document.getElementById('nodeFile');
+
+  let filePathId = null;
+
+  // 1. If a file was uploaded, read it and send to the files API first
+  if (fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    const textContent = await file.text();
+
+    const fileRes = await fetch(`${BASE_URL}/users/${TEST_USER_ID}/files`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: textContent, filename: file.name })
+    });
+    
+    const fileData = await fileRes.json();
+    filePathId = fileData.file_id; // Capture the new Firestore Document ID
+  }
+
+  const response = await fetch(`${BASE_URL}/users/${TEST_USER_ID}/nodes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      label: label,
+      seniority_level: level, // 0=Root, 1=Major, 2=Atomic
+      cluster_id: 'debug-cluster',
+      status: 'ACTIVE', // Default status per protocol
+      file_path: filePathId
+    })
+  });
+
+  const newNode = await response.json();
+  console.log("Node Created in Firestore:", newNode);
+  
+  // Refreshes the D3 graph to show the new node
+  if (typeof initGraph === "function") initGraph(); 
+};
+
+/**
+ * Manually trigger Node Linking Protocol
+ */
+window.debugCreateLink = async () => {
+  const sourceId = document.getElementById('sourceId').value;
+  const targetId = document.getElementById('targetId').value;
+  const relationType = document.getElementById('linkType').value;
+
+  const response = await fetch(`${BASE_URL}/users/${TEST_USER_ID}/links`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      source_id: sourceId,
+      target_id: targetId,
+      relation_type: relationType // PARENT_OF (solid) or SYNAPSE (dotted)
+    })
+  });
+
+  const result = await response.json();
+  console.log("Link Created in Firestore:", result);
+  
+  // Refreshes the D3 graph to show the new connection
+  if (typeof initGraph === "function") initGraph();
+};
+
+initChat(() => {
+    console.log("Chat activity detected potential node changes. Refreshing graph...");
+    initGraph();
 });

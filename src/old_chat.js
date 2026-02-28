@@ -9,6 +9,14 @@ const newTabBtn = document.getElementById("newTabBtn");
 
 const themeToggle = document.getElementById("themeToggle");
 
+const HOST = "localhost";
+const PORT = "5001";
+const PROJECT = "mynorthhub"; // Found in firebase.json or Firebase console
+const REGION = "us-central1";
+const FUNCTION_NAME = "chatGemini";
+
+const BASE_URL = `http://${HOST}:${PORT}/${PROJECT}/${REGION}/${FUNCTION_NAME}`;
+
 function setTheme(theme) {
   document.body.setAttribute("data-theme", theme);
   localStorage.setItem("mynorth_theme", theme);
@@ -216,83 +224,6 @@ function hideLoading() {
     loadingEl = null;
 }
 
-sendButton.addEventListener("click", async () => {
-  const userMessage = chatTextArea.value.trim();
-  if (!userMessage) return;
-
-  const messages = getActiveMessages();
-
-  addUserMessage(userMessage);
-  chatTextArea.value = "";
-
-  const tab = getActiveTab();
-if (tab.messages.length === 0) {
-tab.title = userMessage.slice(0, 20);
-renderTabs();
-}
-
-  messages.push({
-    role: "user",
-    text: userMessage,
-  });
-
-  trimHistory(messages);
-  saveState(state);
-
-  chatLogs.scrollTop = chatLogs.scrollHeight;
-
-  showLoading();
-  sendButton.disabled = true;
-
-  try {
-    const response = await fetch(
-      "https://chatgemini-zoxcu4jcta-uc.a.run.app",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          history: messages,
-          message: userMessage,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    hideLoading();
-    sendButton.disabled = false;
-
-    addAIMessage(data.message, data.model);
-
-    messages.push({
-      role: "model",
-      text: data.message,
-      model: data.model,
-    });
-
-    trimHistory(messages);
-    saveState(state);
-
-    chatLogs.scrollTop = chatLogs.scrollHeight;
-  } catch (err) {
-    hideLoading();
-    sendButton.disabled = false;
-    addAIMessage("_Error: failed to get response_", "System");
-  }
-});
-
-chatTextArea.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendButton.click();
-    }
-});
-
-chatTextArea.addEventListener("input", () => {
-    chatTextArea.style.height = "auto";
-    chatTextArea.style.height = chatTextArea.scrollHeight + "px";
-});
-
 function renderHistory() {
   chatLogs.innerHTML = "";
 
@@ -353,3 +284,89 @@ function createNewTab() {
 import dayjs from "dayjs";
 
 console.log(dayjs().format());
+
+// Wrap the setup logic in an exported function
+export function initChat(onGraphUpdatedCallback) {
+  chatTextArea.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendButton.click();
+    }
+  });
+
+  chatTextArea.addEventListener("input", () => {
+    chatTextArea.style.height = "auto";
+    chatTextArea.style.height = chatTextArea.scrollHeight + "px";
+  });
+
+  sendButton.addEventListener("click", async () => {
+    const userMessage = chatTextArea.value.trim();
+    if (!userMessage) return;
+
+    const messages = getActiveMessages();
+
+    addUserMessage(userMessage);
+    chatTextArea.value = "";
+
+    const tab = getActiveTab();
+    if (tab.messages.length === 0) {
+      tab.title = userMessage.slice(0, 20);
+      renderTabs();
+    }
+
+    messages.push({
+      role: "user",
+      text: userMessage,
+    });
+
+    trimHistory(messages);
+    saveState(state);
+
+    chatLogs.scrollTop = chatLogs.scrollHeight;
+
+    showLoading();
+    sendButton.disabled = true;
+
+    try {
+      const response = await fetch(BASE_URL,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            history: messages,
+            message: userMessage,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      hideLoading();
+      sendButton.disabled = false;
+
+      addAIMessage(data.message, data.model);
+
+      messages.push({
+        role: "model",
+        text: data.message,
+        model: data.model,
+      });
+
+      if (data.graphUpdated === true && typeof onGraphUpdatedCallback === "function") {
+        console.log("Graph update detected. Refreshing constellation...");
+        onGraphUpdatedCallback();
+      }
+
+      trimHistory(messages);
+      saveState(state);
+
+      chatLogs.scrollTop = chatLogs.scrollHeight;
+    } catch (err) {
+      hideLoading();
+      sendButton.disabled = false;
+      addAIMessage("_Error: failed to get response_", "System");
+    }
+  });
+
+  renderHistory();
+}

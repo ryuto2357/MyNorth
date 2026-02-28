@@ -11,58 +11,63 @@ const app = express();
 app.use(express.json());
 exports.api = functions.https.onRequest(app);
 
-app.get('/api/graph', async (req, res) => {
-    const snapshot = await db.collection('nodes').get();
-    const nodes = [];
-    const links = [];
+// Fetch the full graph for a specific user
+app.get('/api/users/:userId/graph', async (req, res) => {
+    const { userId } = req.params;
 
-    snapshot.forEach(doc => {
-        const data = doc.data();
-        // Add node
-        nodes.push({ id: doc.id, label: data.label, content: data.content });
-        
-        // Add links based on neighbors
-        if (data.neighbors) {
-            data.neighbors.forEach(neighborId => {
-                links.push({ source: doc.id, target: neighborId });
-            });
-        }
-    });
+    // Path changes to nested sub-collections
+    const nodesRef = db.collection('users').doc(userId).collection('nodes');
+    const linksRef = db.collection('users').doc(userId).collection('links');
+
+    const [nodesSnapshot, linksSnapshot] = await Promise.all([
+        nodesRef.get(),
+        linksRef.get()
+    ]);
+
+    const nodes = nodesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const links = linksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     res.json({ nodes, links });
 });
 
-app.post('/nodes', async (req, res) => {
-    const { label, content } = req.body;
+// Create a node following the Node Creation Protocol
+app.post('/api/users/:userId/nodes', async (req, res) => {
+    const { userId } = req.params;
+    const { label, parent_id, seniority_level, cluster_id } = req.body;
+    
+    // Structure following node_template.md protocols
     const newNode = {
         label,
-        content,
-        neighbors: [],
+        parent_id: parent_id || null,
+        cluster_id: cluster_id || 'general',
+        seniority_level: seniority_level || 2, // 0=Root, 1=Major, 2=Atomic
+        status: 'ACTIVE',
+        metadata: {
+            familiarity_score: 0,
+            learning_progress: 0,
+            last_updated: new Date().toISOString() // Protocol timestamp
+        },
         createdAt: new Date().toISOString()
     };
     
-    const doc = await db.collection('nodes').add(newNode);
-    res.json({ id: doc.id, ...newNode });
+    const docRef = await db.collection('users').doc(userId).collection('nodes').add(newNode);
+    res.json({ id: docRef.id, ...newNode });
 });
 
-app.post('/links', async (req, res) => {
-    const { sourceId, targetId } = req.body;
-    
-    // Use a batch to ensure both nodes update, or neither does
-    const batch = db.batch();
-    const sourceRef = db.collection('nodes').doc(sourceId);
-    const targetRef = db.collection('nodes').doc(targetId);
+app.post('/api/users/:userId/links', async (req, res) => {
+    const { userId } = req.params;
+    const { source_id, target_id, relation_type } = req.body;
 
-    // Atomically add the IDs to the neighbors arrays
-    batch.update(sourceRef, {
-        neighbors: admin.firestore.FieldValue.arrayUnion(targetId)
-    });
-    batch.update(targetRef, {
-        neighbors: admin.firestore.FieldValue.arrayUnion(sourceId)
-    });
+    const newLink = {
+        source_id,
+        target_id,
+        relation_type: relation_type || 'SYNAPSE', //
+        strength: relation_type === 'PARENT_OF' ? 1.0 : 0.1, // Strength logic from protocol
+        created_at: new Date().toISOString()
+    };
 
-    await batch.commit();
-    res.json({ success: true, message: "Nodes linked" });
+    const docRef = await db.collection('users').doc(userId).collection('links').add(newLink);
+    res.json({ id: docRef.id, ...newLink });
 });
 
 const PORT = process.env.PORT || 8080;
